@@ -1,0 +1,1 @@
+ALTER TABLE `entries` ADD `filled` integer DEFAULT false NOT NULL;

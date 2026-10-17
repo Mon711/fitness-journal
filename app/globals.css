@@ -1194,3 +1194,183 @@ h1 {
     }
   }
 }
+
+/* Daily entry state is descriptive, and independent of field completeness. */
+.date-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.entry-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #dce3d3;
+  border-radius: 20px;
+  padding: 5px 9px;
+  font-size: 10px;
+  white-space: nowrap;
+  font-weight: 400;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+.entry-status.unrecorded {
+  color: #7c8577;
+  background: #f7f8f2;
+  border-color: #e5e8df;
+}
+.entry-status.started {
+  color: #7a6c43;
+  background: #f5f1e5;
+  border-color: #e8dfc9;
+}
+.entry-status.filled {
+  color: #35583d;
+  background: #e9f0e1;
+  border-color: #cddcc0;
+}
+.date-status h2 {
+  margin-right: 0;
+}
+.saved-entry {
+  padding-top: 25px;
+}
+.saved-heading {
+  display: flex;
+  gap: 13px;
+  align-items: flex-start;
+  background: #f0f5e9;
+  padding: 18px;
+  border-radius: 10px;
+}
+.saved-icon {
+  color: #6f885c;
+  flex-shrink: 0;
+}
+.saved-heading h3 {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.saved-heading p {
+  font-size: 11px;
+  color: #7c8972;
+  line-height: 1.8;
+  margin-top: 7px;
+}
+.entry-summary {
+  margin: 22px 0 0;
+}
+.entry-summary > div {
+  display: grid;
+  grid-template-columns: 105px minmax(0, 1fr);
+  gap: 15px;
+  border-bottom: 1px solid var(--line);
+  padding: 14px 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.entry-summary dt {
+  color: #87917d;
+}
+.entry-summary dd {
+  margin: 0;
+  color: #43583e;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.entry-summary .summary-notes {
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+.summary-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 22px;
+}
+.finish-day {
+  margin-top: 22px;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+.finish-day p {
+  font-size: 11px;
+  color: #828c78;
+  line-height: 1.8;
+  margin-bottom: 12px;
+}
+.finish-day .primary {
+  width: 100%;
+}
+.cancel-edit {
+  display: inline-flex;
+  margin-top: 10px;
+  margin-right: 18px;
+  min-height: 44px;
+}
+.reopen-entry {
+  margin-top: 10px;
+  min-height: 44px;
+}
+.dot.started {
+  background: #ae9d6c;
+  border-color: #ae9d6c;
+}
+.day-filled {
+  color: #557745;
+}
+.history-row > .entry-status {
+  margin-left: 3px;
+}
+.form-footer .secondary {
+  background: #f8faf3;
+  color: #385236;
+}
+.date-controls button:disabled {
+  opacity: 0.3;
+}
+@media (max-width: 650px) {
+  .date-status {
+    gap: 4px;
+  }
+  .date-status .entry-status {
+    font-size: 9px;
+    padding: 3px 7px;
+  }
+  .entry-header {
+    align-items: flex-start;
+  }
+  .date-controls {
+    padding-top: 15px;
+  }
+  .saved-heading {
+    padding: 15px;
+  }
+  .saved-heading h3 {
+    font-size: 14px;
+  }
+  .entry-summary > div {
+    grid-template-columns: 90px minmax(0, 1fr);
+    gap: 10px;
+  }
+  .summary-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .summary-actions button {
+    width: 100%;
+  }
+  .history-row {
+    gap: 10px;
+  }
+  .history-row > .entry-status {
+    font-size: 9px;
+    padding: 4px 6px;
+  }
+  .week-caption {
+    gap: 8px;
+  }
+}

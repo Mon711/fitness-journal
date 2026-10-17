@@ -17,6 +17,7 @@ export const entries = sqliteTable(
     alcoholQuantity: text("alcohol_quantity"),
     junkFood: text("junk_food"),
     notes: text("notes").notNull().default(""),
+    filled: integer("filled", { mode: "boolean" }).notNull().default(false),
     updatedAt: text("updated_at").notNull(),
   },
   (t) => [primaryKey({ columns: [t.owner, t.date] })],

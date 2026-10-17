@@ -2,7 +2,7 @@ export const tools = [
   {
     name: "get_entry",
     description:
-      "Read your journal on a calendar date. Null means unrecorded, never a missed workout.",
+      "Read your journal on a calendar date. Null means unrecorded, never a missed workout. The filled flag is the user's explicit confirmation, not inferred from optional fields.",
     inputSchema: {
       type: "object",
       properties: { date: { type: "string", description: "YYYY-MM-DD" } },
@@ -27,7 +27,7 @@ export const tools = [
   {
     name: "get_phase",
     description:
-      "Read phase title, starting date and duration in weeks. Null means the phase is not configured.",
+      "Read phase title, starting date and duration in weeks. Defaults to a 16-week phase beginning 2026-10-17 until customized.",
     inputSchema: {
       type: "object",
       properties: {},

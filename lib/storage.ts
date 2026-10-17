@@ -1,15 +1,25 @@
 import { env } from "cloudflare:workers";
-import type { Entry, Phase } from "./journal";
+import {
+  JOURNAL_START,
+  DEFAULT_PHASE,
+  type Entry,
+  type Phase,
+} from "./journal";
 function db() {
   if (!env.DB) throw new Error("Journal database is unavailable");
   return env.DB;
 }
-const columns = `date, workout, bedtime, bedtime_day AS bedtimeDay, wake_time AS wakeTime, alcohol, alcohol_quantity AS alcoholQuantity, junk_food AS junkFood, notes, updated_at AS updatedAt`;
+const columns = `date, workout, bedtime, bedtime_day AS bedtimeDay, wake_time AS wakeTime, alcohol, alcohol_quantity AS alcoholQuantity, junk_food AS junkFood, notes, updated_at AS updatedAt, filled`;
+type StoredEntry = Omit<Entry, "filled"> & { filled: number };
+function decode(row: StoredEntry): Entry {
+  return { ...row, filled: row.filled === 1 };
+}
 export async function getEntry(owner: string, date: string) {
-  return db()
+  const row = await db()
     .prepare(`SELECT ${columns} FROM entries WHERE owner=? AND date=?`)
     .bind(owner, date)
-    .first<Entry>();
+    .first<StoredEntry>();
+  return row ? decode(row) : null;
 }
 export async function listEntries(owner: string, start: string, end: string) {
   return (
@@ -18,13 +28,13 @@ export async function listEntries(owner: string, start: string, end: string) {
         `SELECT ${columns} FROM entries WHERE owner=? AND date>=? AND date<=? ORDER BY date ASC`,
       )
       .bind(owner, start, end)
-      .all<Entry>()
-  ).results;
+      .all<StoredEntry>()
+  ).results.map(decode);
 }
 export async function saveEntry(owner: string, e: Entry) {
   await db()
     .prepare(
-      `INSERT INTO entries (owner,date,workout,bedtime,bedtime_day,wake_time,alcohol,alcohol_quantity,junk_food,notes,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(owner,date) DO UPDATE SET workout=excluded.workout,bedtime=excluded.bedtime,bedtime_day=excluded.bedtime_day,wake_time=excluded.wake_time,alcohol=excluded.alcohol,alcohol_quantity=excluded.alcohol_quantity,junk_food=excluded.junk_food,notes=excluded.notes,updated_at=excluded.updated_at`,
+      `INSERT INTO entries (owner,date,workout,bedtime,bedtime_day,wake_time,alcohol,alcohol_quantity,junk_food,notes,updated_at,filled) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(owner,date) DO UPDATE SET workout=excluded.workout,bedtime=excluded.bedtime,bedtime_day=excluded.bedtime_day,wake_time=excluded.wake_time,alcohol=excluded.alcohol,alcohol_quantity=excluded.alcohol_quantity,junk_food=excluded.junk_food,notes=excluded.notes,updated_at=excluded.updated_at,filled=excluded.filled`,
     )
     .bind(
       owner,
@@ -38,6 +48,7 @@ export async function saveEntry(owner: string, e: Entry) {
       e.junkFood,
       e.notes,
       new Date().toISOString(),
+      e.filled ? 1 : 0,
     )
     .run();
 }
@@ -48,12 +59,19 @@ export async function deleteEntry(owner: string, date: string) {
     .run();
 }
 export async function getPhase(owner: string) {
-  return db()
+  const phase = await db()
     .prepare(
       "SELECT start_date AS startDate,weeks,title FROM phases WHERE owner=?",
     )
     .bind(owner)
     .first<Phase>();
+  return phase
+    ? {
+        ...phase,
+        startDate:
+          phase.startDate < JOURNAL_START ? JOURNAL_START : phase.startDate,
+      }
+    : { ...DEFAULT_PHASE };
 }
 export async function savePhase(owner: string, p: Phase) {
   await db()

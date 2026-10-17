@@ -1,7 +1,7 @@
 // Runs ONLY against the loopback built preview. Uses disposable synthetic owners.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { blankEntry } from "../lib/journal.ts";
+import { blankEntry, DEFAULT_PHASE } from "../lib/journal.ts";
 const base = "http://127.0.0.1:8787";
 const userA = "synthetic-test-alex",
   userB = "synthetic-test-blair";
@@ -9,7 +9,8 @@ async function request(
   path,
   { user = userA, method = "GET", data, origin = base } = {},
 ) {
-  const headers = { "Content-Type": "application/json" };
+  // Fresh connections avoid stale local Wrangler sockets after Worker restarts.
+  const headers = { "Content-Type": "application/json", Connection: "close" };
   if (user) {
     headers["oai-authenticated-user-id"] = user;
     headers["oai-authenticated-user-email"] = user + "@example.test";
@@ -24,7 +25,10 @@ async function request(
   });
   // Drain every response, including denial cases, before reusing a connection.
   const payload = await response.arrayBuffer();
-  return new Response(payload, { status: response.status, headers: response.headers });
+  return new Response(payload, {
+    status: response.status,
+    headers: response.headers,
+  });
 }
 async function rpc(name, args = {}, user = userA) {
   const r = await request("/mcp", {
@@ -177,7 +181,10 @@ test("built app: private CRUD, isolation, CSV and read-only MCP share one databa
         200,
       );
       assert.equal(content(await rpc("get_phase")).phase.weeks, 16);
-      assert.equal(content(await rpc("get_phase", {}, userB)).phase, null);
+      assert.deepEqual(
+        content(await rpc("get_phase", {}, userB)).phase,
+        DEFAULT_PHASE,
+      );
     });
     await t.test("CSV includes only current user's records", async () => {
       const r = await request("/api/entries?format=csv");
@@ -219,6 +226,67 @@ test("built app: private CRUD, isolation, CSV and read-only MCP share one databa
         assert.deepEqual((await discovery.json()).result.supportedVersions, [
           "2026-07-28",
         ]);
+      },
+    );
+    await t.test(
+      "explicit filled state survives browser and MCP reads, and can be reopened",
+      async () => {
+        const partial = { ...blankEntry(date), workout: "D", filled: true };
+        assert.equal(
+          (await request("/api/entries", { method: "PUT", data: partial }))
+            .status,
+          200,
+        );
+        const result = content(await rpc("get_entry", { date })).entry;
+        assert.equal(result.filled, true);
+        assert.equal(result.notes, "");
+        assert.equal(result.alcohol, null);
+        const browser = await (
+          await request("/api/entries?date=" + date)
+        ).json();
+        assert.equal(browser.entry.filled, true);
+        assert.equal(
+          content(await rpc("get_entries", { start: date, end: date }))
+            .entries[0].filled,
+          true,
+        );
+        const csv = await (await request("/api/entries?format=csv")).text();
+        assert.ok(csv.includes('"true"'));
+        await request("/api/entries", {
+          method: "PUT",
+          data: { ...partial, filled: false },
+        });
+        assert.equal(
+          content(await rpc("get_entry", { date })).entry.filled,
+          false,
+        );
+        assert.equal(
+          content(await rpc("get_entry", { date }, userB)).entry.workout,
+          "Rest",
+        );
+      },
+    );
+    await t.test(
+      "entries and phases cannot begin before journal inception",
+      async () => {
+        assert.equal(
+          (
+            await request("/api/entries", {
+              method: "PUT",
+              data: blankEntry("2026-10-16"),
+            })
+          ).status,
+          400,
+        );
+        assert.equal(
+          (
+            await request("/api/phase", {
+              method: "PUT",
+              data: { ...DEFAULT_PHASE, startDate: "2026-10-16" },
+            })
+          ).status,
+          400,
+        );
       },
     );
     await t.test("delete restores an unrecorded day", async () => {

@@ -67,6 +67,9 @@ export default defineConfig(async ({ command }) => {
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,
+        ...(process.env.FITNESS_QA === "1"
+          ? { persistState: { path: ".sites-runtime/qa-state" } }
+          : {}),
         config: {
           ...localBindingConfig,
           ...(command === "serve"

@@ -67,6 +67,8 @@ export async function POST(r: Request) {
           metadata: {
             sleep: "Reported clock times only; no sleep duration inferred.",
             missingEntries: "Unrecorded",
+            filled:
+              "Explicitly marked by the user; optional fields may remain unrecorded",
             bedtimeDay: "previous = date before entry; same = entry date",
             wakeTimeDay: "entry date",
           },

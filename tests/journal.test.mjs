@@ -8,6 +8,9 @@ import {
   parsePhase,
   blankEntry,
   toCsv,
+  DEFAULT_PHASE,
+  entryState,
+  historyDates,
 } from "../lib/journal.ts";
 test("calendar validation rejects impossible days and leap-day errors", () => {
   for (const s of [
@@ -88,4 +91,54 @@ test("CSV escapes quotes, multiline text, and spreadsheet formulas", () => {
   ]);
   assert.ok(csv.includes('"\'=HYPERLINK(""test"")\nsecond line"'));
   assert.ok(csv.startsWith("date,workout,bedtime,bedtimeDay"));
+});
+
+test("entry state distinguishes no record, partial records, and explicit filled confirmation", () => {
+  const blank = blankEntry("2026-10-17");
+  assert.equal(entryState(blank), "unrecorded");
+  assert.equal(entryState({ ...blank, workout: "A" }), "started");
+  assert.equal(entryState({ ...blank, alcohol: "no" }), "started");
+  assert.equal(entryState(blank, true), "started");
+  const full = {
+    ...blank,
+    workout: "A",
+    bedtime: "23:00",
+    wakeTime: "07:00",
+    alcohol: "no",
+    junkFood: "no",
+    notes: "Synthetic",
+  };
+  assert.equal(entryState(full), "started");
+  assert.equal(entryState({ ...blank, filled: true }), "filled");
+  assert.equal(entryState({ ...full, filled: false }), "started");
+});
+test("filled flag is a validated optional-field-independent confirmation", () => {
+  assert.equal(
+    parseEntry({ ...blankEntry("2026-10-17"), filled: true }).filled,
+    true,
+  );
+  assert.throws(() =>
+    parseEntry({ ...blankEntry("2026-10-17"), filled: "yes" }),
+  );
+  const legacy = blankEntry("2026-10-17");
+  delete legacy.filled;
+  assert.equal(parseEntry(legacy).filled, false);
+  assert.ok(
+    toCsv([{ ...blankEntry("2026-10-17"), filled: true }]).includes('"true"'),
+  );
+});
+test("history begins on October 17 and honors configurable later starts", () => {
+  assert.equal(DEFAULT_PHASE.startDate, "2026-10-17");
+  assert.equal(DEFAULT_PHASE.weeks, 16);
+  const days = historyDates("2026-10", DEFAULT_PHASE.startDate);
+  assert.equal(days[0], "2026-10-17");
+  assert.equal(days.length, 15);
+  assert.equal(days.at(-1), "2026-10-31");
+  assert.deepEqual(historyDates("2026-09", DEFAULT_PHASE.startDate), []);
+  assert.equal(historyDates("2026-11", DEFAULT_PHASE.startDate).length, 30);
+  assert.equal(historyDates("2026-10", "2026-10-24")[0], "2026-10-24");
+  assert.throws(() => parseEntry(blankEntry("2026-10-16")));
+  assert.throws(() =>
+    parsePhase({ ...DEFAULT_PHASE, startDate: "2026-10-16" }),
+  );
 });

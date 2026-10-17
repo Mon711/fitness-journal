@@ -1,34 +1,32 @@
 # Verification record — 17 October 2026
 
-All test observations are synthetic. Hosted production journal records were never created, read or modified during testing.
+## Entry-state update
 
-## Automated checks
+All modifying tests use a dedicated local synthetic database at `.sites-runtime/qa-state`. The normal preview uses `.wrangler/state`; its existing user entry was not edited or deleted. The only change to that normal local database was the additive `filled` column migration, preserving previous observations. No hosted journal database was touched.
 
-- Unit suite: **8 passed**. Calendar and leap-date validation; phase numbering and boundaries; null observations; clock times with explicit bedtime date; invalid selections/times; optional alcohol quantity; phase validation; quoted/multiline/formula-safe CSV.
-- Built-server integration suite: **11 scenarios passed** (Node reports 12 including its parent test). Real local D1 and the production Worker were exercised at the fixed loopback URL `http://127.0.0.1:8787`.
-- Integration coverage: anonymous API/MCP denial; cross-origin/missing-origin write denial; malformed inputs; create; edit; inclusive range reads; missing-day nulls; two-user read/delete isolation; independent records for the same date; isolated phase metadata; CSV scope; MCP discovery and three read-only tools; rejection of a write-tool attempt; deletion.
-- TypeScript: **passed** (`tsc --noEmit`).
-- Production build: **passed**, generating the page, two browser APIs and `/mcp`.
-- Initial SQL migration: applied successfully to the local database only.
-
-Local test infrastructure needed two fixes: the macOS Codex sandbox produced native filesystem watcher errors (`EMFILE`) and occasional Worker restart 503s, so `scripts/sites-env.mjs` now selects polling for that sandbox. The HTTP test helper now consumes every response body, including denial responses, before reusing a connection; this removed intermittent connection timeouts. Calls have an eight-second timeout. The final complete integration suite passed twice consecutively. No assertion was weakened to accept an error status.
+- **11 unit tests passed**: existing calendar, clock-time, null, CSV and phase tests, plus explicit entry states, boolean validation, legacy request defaults, and history/start-date boundaries.
+- **13 integration scenarios passed** (Node reports 14 including the parent). The actual production Worker and local D1 were used through `npm run start:test` at fixed loopback port 8787.
+- Integration coverage: anonymous denial; cross-origin/missing-origin write denial; invalid dates/times; create/read/edit/delete; independent users; inclusive date ranges; missing dates; phase metadata/defaults; CSV scope; read-only MCP discovery and write rejection; Filled round-trip through both browser API and MCP (including range reads and CSV); reopening as Started; rejection of writes before 17 October.
+- **TypeScript passed** and **production build passed**.
+- Migration `0001_dapper_deadpool.sql` adds one non-null boolean column with a constant false default. Existing saved observations remain Started rather than being assumed Filled.
 
 ## Actual browser checks
 
-Using the in-app browser against the local development UI:
+Using the isolated QA preview on port 5175:
 
-- Configured a synthetic 16-week phase and verified Day 1 / Week 1 context.
-- Created a daily entry, selected workout A, entered 23:45 bedtime and 07:15 wake-up, alcohol Yes with a quantity, junk food No and synthetic notes.
-- Saved, opened the day from chronological history, and verified all values persisted.
-- Changed workout A to B and edited notes, saved, and verified the updated state.
-- Deleted the disposable entry through the confirmation UI. The day returned to unrecorded, with all observations empty.
-- Inspected actual rendered layouts at **390px phone, 768px tablet and 1440px desktop** widths using a local iframe QA harness (not shipped). Phone uses bottom navigation; larger layouts use a sidebar, with supporting cards rearranged to fit.
-- Fixed repeated pre-phase history headings found during inspection.
+1. An empty day showed Not recorded. Selecting workout A immediately showed Started · Unsaved beside the date and Started in the week strip.
+2. Saving the partial record showed Your entry is saved, the saved details and Edit entry. Optional fields stayed Not recorded.
+3. Mark day as filled changed the date label and week marker to Filled. This persisted after a full reload.
+4. Edit entry reopened the controls. Changing the workout to B and adding synthetic notes saved correctly while retaining the explicit Filled confirmation.
+5. History began at Saturday 17 October under Week 1, with no earlier daily rows and a Filled label on the recorded day.
+6. Mark as started again removed the Filled confirmation without removing observations; marking Filled again restored it.
+7. Deleting the disposable QA record through its confirmation returned the day to Not recorded.
+8. Rendered saved-summary layouts inspected at 390px phone, 768px tablet and 1440px desktop. The date and context remain visible; Edit entry is above the saved details. No real data appears in saved QA screenshots.
 
-CSV content and response headers were verified through the real API. Browser QA uses local simulated identity; it does not establish hosted OAuth/plugin installation status.
+## Local tooling and release boundary
 
-## Publication boundary
+`npm run dev:test` and `npm run start:test` use the dedicated QA database. Stop the development preview before built-server testing and avoid rebuilding while a built server is running. The macOS Codex sandbox uses file polling to avoid native watcher errors. Test requests drain response bodies, use fresh HTTP connections to avoid stale local Wrangler sockets, and retain eight-second timeouts. No assertion accepts a failure status as success.
 
-The native Sites access policy was inspected: the owner is the only allowed account, no external visitors, no groups and no additional editors. The Site remains unpublished until local preview review. Hosted identity enforcement and the connected plugin must receive a read-only smoke test after first publication. Sites does not expose MCP connection details before publication; the native tool confirms that restriction.
+The Site remains owner-private and unpublished pending preview review. The prior native access-policy check allowed only the owner, with no external visitors, groups or other editors. MCP behavior is verified locally; hosted sign-in and plugin installation still require first publication and a subsequent read-only smoke test.
 
-The source, SQL migration and automated tests are versioned. Local databases, synthetic observations, exports, credentials, screenshots and QA harnesses are ignored.
+Local databases, real records, exports, credentials, screenshots and QA harness files remain ignored by Git.

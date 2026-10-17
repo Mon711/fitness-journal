@@ -21,13 +21,24 @@ The Site is registered but must be published only after preview review. A saved 
 
 `lib/journal.ts` contains shared validation, date numbering and CSV formatting. `lib/http.ts` contains request authorization and safe error responses. `app/globals.css` handles the responsive layout. The Sites starter's `build/`, `scripts/` and Vite integration remain part of the supported hosting pipeline.
 
+## Daily entry states
+
+- **Not recorded**: no saved entry and no observations entered.
+- **Started · Unsaved**: selecting a workout or changing another value immediately updates the label beside the date. These changes are not durable until you save; the existing navigation warning protects against accidental loss.
+- **Started**: `Save entry` / `Save changes` stores the current details without declaring that the day is finished.
+- **Filled**: `Mark day as filled` saves the current details and your explicit confirmation. Optional fields can remain unrecorded; the app never guesses completeness from the number of answered fields.
+
+After saving, the date and surrounding page remain visible, with a read-only summary instead of editable choices. Choose **Edit entry** to make changes. Edits preserve an existing Filled confirmation; **Mark as started again** explicitly removes that confirmation without removing observations. History and the week strip show the same state.
+
+`entries.filled` stores this boolean (true/false) flag. Migration `0001_dapper_deadpool.sql` adds it with a false default, preserving all existing records as Started. `lib/storage.ts` converts SQLite's 0/1 storage into a boolean for the browser and MCP. CSV includes the flag as its last column. No automatic scoring, completeness percentage or mandatory fields are introduced.
+
 ## Privacy and time conventions
 
 - Keep the Site's audience owner-only. Sites authenticates visitors and MCP callers and supplies trusted identity headers; the app rejects requests with missing identity. Other identities cannot read or modify your rows, even if the Site audience changes accidentally.
 - No credentials, real records, local database files or exports belong in Git. `.gitignore` excludes them. The app does not use localStorage for journal records.
 - The date is a local calendar date, initially selected from your device. Wake-up belongs to that date. Bedtime can refer to the previous date or the entry date (for example, 00:40 after midnight). No time-zone conversion is applied to these approximate clock observations. `updatedAt` is a separate UTC audit timestamp.
 - `null` means not recorded. It is distinct from `no` and `Rest`. Missing days are not stored as artificial negative records.
-- Phase numbering begins at Day 1 / Week 1 on your configured start date. Days outside the phase remain recordable and display neutral context. Updating phase settings never removes entries.
+- Phase numbering begins at Day 1 / Week 1 on your configured start date. The journal begins on 17 October 2026 by default. Earlier dates are excluded from history and entry navigation; the first week begins on that date. A later configured phase start also limits visible history, without deleting stored records. Dates after the phase remain recordable. Updating phase settings never removes entries.
 - CSV exports all your recorded dates, including dates outside the phase. Blank values remain blank. Formula-like text is prefixed with an apostrophe for spreadsheet safety. CSV backups are downloadable; CSV import is outside version 1.
 - Deletion is permanent for that day's entry; export a backup first if needed.
 
@@ -54,9 +65,10 @@ This changes only local dependency/cache files. A successful install exits witho
 ```sh
 rtk npm run build
 rtk proxy node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_large_spitfire.sql
+rtk proxy node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_dapper_deadpool.sql
 ```
 
-The build produces `dist/`, including the Worker configuration. A Worker is the server program Sites runs to handle requests. The second command applies the **initial migration once to a new local database**. `--local` prevents hosted database access; `--persist-to` selects ignored development state. Expect two successfully executed table creation statements. Do not repeat this initial migration if the local tables already exist. This checkout's local database has already been initialized.
+The build produces `dist/`, including the Worker configuration. A Worker is the server program Sites runs to handle requests. The database commands apply both migrations **once, in order, to a new local database**. `--local` prevents hosted database access; `--persist-to` selects ignored development state. Expect two table creation statements and then one statement adding the Filled field. If you already have the original tables, apply only `0001_dapper_deadpool.sql`. Do not replay applied migrations. This checkout already has both migrations applied, with its existing entry preserved.
 
 For future schema changes, update `db/schema.ts`, run `rtk npm run db:generate`, inspect the new SQL and metadata, rebuild, then apply **only pending new SQL files** locally in order using the same command with the new filename. Commit migrations. Never modify already-applied migration files. Hosted migrations are handled by Sites; do not add `--remote` to local test commands.
 
@@ -78,13 +90,17 @@ rtk npm run build
 
 These check domain behavior, TypeScript consistency, and production compilation. TypeScript checks that the code uses compatible data types. All commands must exit successfully. They do not touch hosted data.
 
-In a second terminal, start the built server:
+Use the separate synthetic QA database for all tests, even if the ordinary local preview contains your own entries. For a fresh checkout, initialize it once by applying each SQL file in `drizzle/` in order with the migration commands above, replacing `--persist-to .wrangler/state` with `--persist-to .sites-runtime/qa-state`. This checkout's QA database is initialized. Never copy real records into it.
+
+For actual browser testing, run `rtk npm run dev:test`. This starts a loopback preview at <http://127.0.0.1:5175> using `.sites-runtime/qa-state`, separate from your normal preview's data. The `FITNESS_QA` switch is read only by development tooling, never as a hosted authentication bypass.
+
+Stop that preview before testing the built server:
 
 ```sh
-rtk npm start -- --port 8787
+rtk npm run start:test
 ```
 
-This runs the production build **locally**, bound to 127.0.0.1. It uses the local D1 database and does not simulate browser sign-in. Wait until Wrangler reports readiness. Stop the development preview before running built-server tests, and avoid rebuilding while the built server runs. In the macOS Codex sandbox, the local environment helper selects file polling to avoid unsupported native filesystem watchers. Then run:
+This runs the production build **locally**, bound to 127.0.0.1. It uses only the separate synthetic QA database and does not simulate browser sign-in. Wait until Wrangler reports readiness. Stop the development preview before running built-server tests, and avoid rebuilding while the built server runs. In the macOS Codex sandbox, the local environment helper selects file polling to avoid unsupported native filesystem watchers. Then run:
 
 ```sh
 rtk npm run test:api
@@ -92,7 +108,7 @@ rtk npm run test:api
 
 The integration tests use only `http://127.0.0.1:8787`, disposable `synthetic-test-*` identities and a 2091 sample date. Tests check CRUD (create, read, update and delete), access denial, two-user isolation, CSV and the actual MCP endpoint. They delete their own test entries afterward; synthetic phase metadata may remain in the local database. Production authentication is provided by Sites, so these tests simulate its trusted headers only against the loopback built server. Never expose that server to a network or substitute a production URL.
 
-Also use the actual development UI: configure a phase, create an entry, set both clock times, switch bedtime date, save, reopen in Journal, edit, export CSV, and delete. Inspect widths around 390, 768 and 1440 pixels, keyboard focus, and unsaved-change prompts. Use synthetic values only. See TESTING.md for the last verified results.
+Also use the actual isolated QA UI: configure a phase, create an entry, set both clock times, switch bedtime date, save, reopen in Journal, save a partial entry, mark it Filled, reload, edit, reopen as Started, export CSV, and delete. Inspect widths around 390, 768 and 1440 pixels, keyboard focus, and unsaved-change prompts. Use synthetic values only. See TESTING.md for the last verified results.
 
 ## Prepare and publish through Sites
 

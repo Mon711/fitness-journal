@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import EntrySummary from "./entry-summary";
 import {
   BookOpen,
   CalendarDays,
@@ -20,6 +21,10 @@ import {
   addDays,
   blankEntry,
   context,
+  DEFAULT_PHASE,
+  JOURNAL_START,
+  entryState,
+  historyDates,
   type Entry,
   type Phase,
 } from "../lib/journal";
@@ -49,7 +54,7 @@ export default function Journal() {
     [entries, setEntries] = useState<Entry[]>([]),
     [phase, setPhase] = useState<Phase | null>(null),
     [draft, setDraft] = useState<Phase>({
-      startDate: today(),
+      startDate: DEFAULT_PHASE.startDate,
       weeks: 16,
       title: "My fitness phase",
     }),
@@ -57,6 +62,7 @@ export default function Journal() {
     [busy, setBusy] = useState(false),
     [dirty, setDirty] = useState(false),
     [saved, setSaved] = useState(false),
+    [editing, setEditing] = useState(true),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [confirmDelete, setConfirmDelete] = useState(false),
@@ -70,16 +76,21 @@ export default function Journal() {
     setEntries(a.entries);
     setPhase(b.phase);
     if (b.phase) setDraft(b.phase);
-    return a.entries as Entry[];
+    return { entries: a.entries, phase: b.phase ?? DEFAULT_PHASE };
   }
   useEffect(() => {
     let active = true;
     refresh()
-      .then((es) => {
+      .then(({ entries: es, phase: p }) => {
         if (active) {
-          const e = es.find((x) => x.date === date);
-          setEntry(e || blankEntry(date));
+          const initialDate = date < p.startDate ? p.startDate : date;
+          const e = es.find((x) => x.date === initialDate);
+          setDate(initialDate);
+          if (range < p.startDate.slice(0, 7))
+            setRange(p.startDate.slice(0, 7));
+          setEntry(e || blankEntry(initialDate));
           setSaved(!!e);
+          setEditing(!e);
         }
       })
       .catch((e) => setError(e.message))
@@ -95,11 +106,12 @@ export default function Journal() {
     );
   }
   function selectDay(d: string) {
-    if (busy || !leave()) return;
+    if (d < startDate || busy || !leave()) return;
     const e = entries.find((x) => x.date === d);
     setDate(d);
     setEntry(e || blankEntry(d));
     setSaved(!!e);
+    setEditing(!e);
     setDirty(false);
     setError("");
     setNotice("");
@@ -112,6 +124,8 @@ export default function Journal() {
     setDirty(false);
     const e = entries.find((x) => x.date === date);
     setEntry(e || blankEntry(date));
+    setSaved(!!e);
+    setEditing(!e);
     setTab(t);
     window.scrollTo(0, 0);
     setNotice("");
@@ -136,15 +150,21 @@ export default function Journal() {
     setDirty(true);
     setNotice("");
   }
-  async function save() {
+  async function save(filled = entry.filled) {
     setBusy(true);
     setError("");
     try {
-      await api("/api/entries", { method: "PUT", body: JSON.stringify(entry) });
+      const result = await api<{ entry: Entry }>("/api/entries", {
+        method: "PUT",
+        body: JSON.stringify({ ...entry, filled }),
+      });
       await refresh();
       setDirty(false);
+      setEntry(result.entry);
       setSaved(true);
-      setNotice("Entry saved");
+      setEditing(false);
+      window.scrollTo(0, 0);
+      setNotice("");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -158,6 +178,7 @@ export default function Journal() {
       await refresh();
       setEntry(blankEntry(date));
       setSaved(false);
+      setEditing(true);
       setDirty(false);
       setConfirmDelete(false);
       setNotice("Entry deleted. This day is unrecorded.");
@@ -176,6 +197,16 @@ export default function Journal() {
         body: JSON.stringify(draft),
       });
       setPhase(result.phase);
+      if (date < result.phase.startDate) {
+        const d = result.phase.startDate;
+        const existing = entries.find((e) => e.date === d);
+        setDate(d);
+        setEntry(existing || blankEntry(d));
+        setSaved(!!existing);
+        setEditing(!existing);
+      }
+      if (range < result.phase.startDate.slice(0, 7))
+        setRange(result.phase.startDate.slice(0, 7));
       setDirty(false);
       setWeek(0);
       setNotice("Phase settings saved");
@@ -185,25 +216,42 @@ export default function Journal() {
       setBusy(false);
     }
   }
-  const current = phase ? context(date, phase) : "Your personal journal";
+  const startDate = phase?.startDate ?? DEFAULT_PHASE.startDate;
+  const state = entryState(entry, saved || dirty);
+  const stateLabel =
+    state === "filled"
+      ? "Filled"
+      : state === "started"
+        ? "Started"
+        : "Not recorded";
+  const current = context(date, phase ?? DEFAULT_PHASE);
   const weekStart = phase ? addDays(phase.startDate, week * 7) : date;
-  const historyStart = range + "-01";
+
   function weekGroup(d: string) {
     const c = phase
       ? context(d, phase)
       : pretty(d, { month: "long", year: "numeric" });
     return c.includes(" · ") ? c.split(" · ")[1] : c;
   }
-  const historyDays = Array.from(
-    {
-      length: new Date(
-        Number(range.slice(0, 4)),
-        Number(range.slice(5, 7)),
-        0,
-      ).getDate(),
-    },
-    (_, i) => addDays(historyStart, i),
-  );
+  const historyDays = historyDates(range, startDate);
+  function cancelEdit() {
+    if (!leave()) return;
+    const original = entries.find((e) => e.date === date);
+    if (original) {
+      setEntry(original);
+      setDirty(false);
+      setEditing(false);
+      setConfirmDelete(false);
+    }
+  }
+  function dayState(d: string) {
+    return d === date && dirty
+      ? entryState(entry, true)
+      : entryState(
+          entries.find((e) => e.date === d),
+          entries.some((e) => e.date === d),
+        );
+  }
   function choices(
     label: string,
     k: "alcohol" | "junkFood",
@@ -347,12 +395,23 @@ export default function Journal() {
                     <div className="entry-header">
                       <div>
                         <p className="eyebrow">DAILY ENTRY</p>
-                        <h2>{pretty(date)}</h2>
+                        <div className="date-status">
+                          <h2>{pretty(date)}</h2>
+                          <span
+                            className={`entry-status ${state}`}
+                            aria-live="polite"
+                          >
+                            {state === "filled" && <Check size={12} />}{" "}
+                            {stateLabel}
+                            {dirty ? " · Unsaved" : ""}
+                          </span>
+                        </div>
                         <span className="context">{current}</span>
                       </div>
                       <div className="date-controls">
                         <button
                           aria-label="Previous day"
+                          disabled={date <= startDate || busy}
                           onClick={() => selectDay(addDays(date, -1))}
                         >
                           <ArrowLeft size={18} />
@@ -362,7 +421,7 @@ export default function Journal() {
                           <input
                             aria-label="Entry date"
                             type="date"
-                            min="1900-01-01"
+                            min={startDate}
                             max="2200-12-31"
                             value={date}
                             onChange={(e) => {
@@ -378,183 +437,222 @@ export default function Journal() {
                         </button>
                       </div>
                     </div>
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        save();
-                      }}
-                    >
-                      <fieldset disabled={busy}>
-                        <div className="section-field">
-                          <div className="field-title">
-                            <span className="tiny-line">↗</span>
-                            <legend>Movement</legend>
-                            <span className="optional">optional</span>
-                          </div>
-                          <p className="helper">Which workout did you do?</p>
-                          <div
-                            className="workout-options"
-                            role="group"
-                            aria-label="Workout"
-                          >
-                            {["A", "B", "C", "D", "E", "Rest"].map((w) => (
-                              <button
-                                key={w}
-                                type="button"
-                                aria-pressed={entry.workout === w}
-                                className={
-                                  entry.workout === w ? "selected" : ""
-                                }
-                                onClick={() => update("workout", w)}
-                              >
-                                {w}
-                              </button>
-                            ))}
-                          </div>
-                          <button
-                            className="clear-option"
-                            type="button"
-                            aria-pressed={entry.workout === null}
-                            onClick={() => update("workout", null)}
-                          >
-                            {entry.workout === null ? (
-                              <Check size={13} />
-                            ) : null}{" "}
-                            Not recorded
-                          </button>
-                        </div>
-                        <div className="section-field">
-                          <div className="field-title">
-                            <Moon size={19} />
-                            <h3>Night & morning</h3>
-                            <span className="optional">optional</span>
-                          </div>
-                          <p className="helper">
-                            Approximate times are perfectly fine.
-                          </p>
-                          <div className="time-grid">
-                            <div>
-                              <label htmlFor="bedtime">Went to bed</label>
-                              <div className="time-input">
-                                <Moon size={16} />
-                                <input
-                                  id="bedtime"
-                                  type="time"
-                                  value={entry.bedtime || ""}
-                                  onChange={(e) =>
-                                    update("bedtime", e.target.value || null)
-                                  }
-                                />
-                              </div>
-                              <select
-                                aria-label="Bedtime day"
-                                value={entry.bedtimeDay}
-                                onChange={(e) =>
-                                  update("bedtimeDay", e.target.value)
-                                }
-                              >
-                                <option value="previous">
-                                  Previous evening ·{" "}
-                                  {pretty(addDays(date, -1), {
-                                    month: "short",
-                                    day: "numeric",
-                                  })}
-                                </option>
-                                <option value="same">
-                                  Entry date ·{" "}
-                                  {pretty(date, {
-                                    month: "short",
-                                    day: "numeric",
-                                  })}
-                                </option>
-                              </select>
-                            </div>
-                            <div>
-                              <label htmlFor="wake">Woke up</label>
-                              <div className="time-input">
-                                <Sun size={17} />
-                                <input
-                                  id="wake"
-                                  type="time"
-                                  value={entry.wakeTime || ""}
-                                  onChange={(e) =>
-                                    update("wakeTime", e.target.value || null)
-                                  }
-                                />
-                              </div>
-                              <span className="time-caption">
-                                On {pretty(date)}
-                              </span>
-                            </div>
-                          </div>
-                          <p className="sleep-note">
-                            Clock times only — these don’t tell us how long you
-                            slept.
-                          </p>
-                        </div>
-                        <div className="section-field">
-                          {choices("Alcohol", "alcohol", Wine)}
-                          {entry.alcohol === "yes" && (
-                            <label className="quantity">
-                              Quantity{" "}
+                    {!editing && saved ? (
+                      <EntrySummary
+                        entry={entry}
+                        busy={busy}
+                        onEdit={() => {
+                          setEditing(true);
+                          setConfirmDelete(false);
+                          window.scrollTo(0, 0);
+                        }}
+                        onFilled={() => save(true)}
+                        onReopen={() => save(false)}
+                        onDelete={() => setConfirmDelete(true)}
+                      />
+                    ) : (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          save();
+                        }}
+                      >
+                        <fieldset disabled={busy}>
+                          <div className="section-field">
+                            <div className="field-title">
+                              <span className="tiny-line">↗</span>
+                              <legend>Movement</legend>
                               <span className="optional">optional</span>
-                              <input
-                                placeholder="e.g. 1 glass of wine"
-                                maxLength={100}
-                                value={entry.alcoholQuantity || ""}
-                                onChange={(e) =>
-                                  update(
-                                    "alcoholQuantity",
-                                    e.target.value || null,
-                                  )
-                                }
-                              />
+                            </div>
+                            <p className="helper">Which workout did you do?</p>
+                            <div
+                              className="workout-options"
+                              role="group"
+                              aria-label="Workout"
+                            >
+                              {["A", "B", "C", "D", "E", "Rest"].map((w) => (
+                                <button
+                                  key={w}
+                                  type="button"
+                                  aria-pressed={entry.workout === w}
+                                  className={
+                                    entry.workout === w ? "selected" : ""
+                                  }
+                                  onClick={() => update("workout", w)}
+                                >
+                                  {w}
+                                </button>
+                              ))}
+                            </div>
+                            <button
+                              className="clear-option"
+                              type="button"
+                              aria-pressed={entry.workout === null}
+                              onClick={() => update("workout", null)}
+                            >
+                              {entry.workout === null ? (
+                                <Check size={13} />
+                              ) : null}{" "}
+                              Not recorded
+                            </button>
+                          </div>
+                          <div className="section-field">
+                            <div className="field-title">
+                              <Moon size={19} />
+                              <h3>Night & morning</h3>
+                              <span className="optional">optional</span>
+                            </div>
+                            <p className="helper">
+                              Approximate times are perfectly fine.
+                            </p>
+                            <div className="time-grid">
+                              <div>
+                                <label htmlFor="bedtime">Went to bed</label>
+                                <div className="time-input">
+                                  <Moon size={16} />
+                                  <input
+                                    id="bedtime"
+                                    type="time"
+                                    value={entry.bedtime || ""}
+                                    onChange={(e) =>
+                                      update("bedtime", e.target.value || null)
+                                    }
+                                  />
+                                </div>
+                                <select
+                                  aria-label="Bedtime day"
+                                  value={entry.bedtimeDay}
+                                  onChange={(e) =>
+                                    update("bedtimeDay", e.target.value)
+                                  }
+                                >
+                                  <option value="previous">
+                                    Previous evening ·{" "}
+                                    {pretty(addDays(date, -1), {
+                                      month: "short",
+                                      day: "numeric",
+                                    })}
+                                  </option>
+                                  <option value="same">
+                                    Entry date ·{" "}
+                                    {pretty(date, {
+                                      month: "short",
+                                      day: "numeric",
+                                    })}
+                                  </option>
+                                </select>
+                              </div>
+                              <div>
+                                <label htmlFor="wake">Woke up</label>
+                                <div className="time-input">
+                                  <Sun size={17} />
+                                  <input
+                                    id="wake"
+                                    type="time"
+                                    value={entry.wakeTime || ""}
+                                    onChange={(e) =>
+                                      update("wakeTime", e.target.value || null)
+                                    }
+                                  />
+                                </div>
+                                <span className="time-caption">
+                                  On {pretty(date)}
+                                </span>
+                              </div>
+                            </div>
+                            <p className="sleep-note">
+                              Clock times only — these don’t tell us how long
+                              you slept.
+                            </p>
+                          </div>
+                          <div className="section-field">
+                            {choices("Alcohol", "alcohol", Wine)}
+                            {entry.alcohol === "yes" && (
+                              <label className="quantity">
+                                Quantity{" "}
+                                <span className="optional">optional</span>
+                                <input
+                                  placeholder="e.g. 1 glass of wine"
+                                  maxLength={100}
+                                  value={entry.alcoholQuantity || ""}
+                                  onChange={(e) =>
+                                    update(
+                                      "alcoholQuantity",
+                                      e.target.value || null,
+                                    )
+                                  }
+                                />
+                              </label>
+                            )}
+                            {choices("Junk food", "junkFood", Utensils)}
+                          </div>
+                          <div className="section-field notes-field">
+                            <label className="field-title" htmlFor="notes">
+                              <PencilLine size={18} />
+                              <span>Anything else?</span>
+                              <span className="optional">optional</span>
                             </label>
+                            <textarea
+                              id="notes"
+                              maxLength={10000}
+                              placeholder="How you felt, something you noticed, or just a thought…"
+                              value={entry.notes}
+                              onChange={(e) => update("notes", e.target.value)}
+                            />
+                          </div>
+                          <div className="form-footer">
+                            <span>
+                              {dirty
+                                ? "Unsaved changes"
+                                : saved
+                                  ? "Recorded in your journal"
+                                  : "Nothing recorded yet"}
+                            </span>
+                            <button className="secondary" type="submit">
+                              {busy
+                                ? "Saving…"
+                                : saved
+                                  ? "Save changes"
+                                  : "Save entry"}
+                              <Check size={17} />
+                            </button>
+                          </div>
+                          {!entry.filled && (
+                            <div className="finish-day">
+                              <p>
+                                Finished recording for this day? Optional
+                                details can stay unrecorded.
+                              </p>
+                              <button
+                                type="button"
+                                className="primary"
+                                onClick={() => save(true)}
+                              >
+                                Mark day as filled <Check size={17} />
+                              </button>
+                            </div>
                           )}
-                          {choices("Junk food", "junkFood", Utensils)}
-                        </div>
-                        <div className="section-field notes-field">
-                          <label className="field-title" htmlFor="notes">
-                            <PencilLine size={18} />
-                            <span>Anything else?</span>
-                            <span className="optional">optional</span>
-                          </label>
-                          <textarea
-                            id="notes"
-                            maxLength={10000}
-                            placeholder="How you felt, something you noticed, or just a thought…"
-                            value={entry.notes}
-                            onChange={(e) => update("notes", e.target.value)}
-                          />
-                        </div>
-                        <div className="form-footer">
-                          <span>
-                            {dirty
-                              ? "Unsaved changes"
-                              : saved
-                                ? "Recorded in your journal"
-                                : "Nothing recorded yet"}
-                          </span>
-                          <button className="primary" type="submit">
-                            {busy
-                              ? "Saving…"
-                              : saved
-                                ? "Save changes"
-                                : "Save entry"}
-                            <Check size={17} />
-                          </button>
-                        </div>
-                        {saved && (
-                          <button
-                            className="delete-link"
-                            type="button"
-                            onClick={() => setConfirmDelete(true)}
-                          >
-                            Delete this entry
-                          </button>
-                        )}
-                      </fieldset>
-                    </form>
+                          {saved && (
+                            <button
+                              type="button"
+                              className="clear-option cancel-edit"
+                              onClick={cancelEdit}
+                            >
+                              Cancel editing
+                            </button>
+                          )}
+                          {saved && (
+                            <button
+                              className="delete-link"
+                              type="button"
+                              onClick={() => setConfirmDelete(true)}
+                            >
+                              Delete this entry
+                            </button>
+                          )}
+                        </fieldset>
+                      </form>
+                    )}
                     {confirmDelete && (
                       <div
                         className="delete-confirm"
@@ -641,25 +739,34 @@ export default function Journal() {
                         <div className="week-days">
                           {Array.from({ length: 7 }, (_, i) => {
                             const d = addDays(weekStart, i),
-                              recorded = entries.some((e) => e.date === d);
+                              status = dayState(d);
                             return (
                               <button
                                 key={d}
                                 className={d === date ? "chosen" : ""}
-                                aria-label={`${pretty(d)}${recorded ? ", recorded" : ", unrecorded"}`}
+                                aria-label={`${pretty(d)}, ${status}`}
                                 onClick={() => selectDay(d)}
                               >
                                 <span>{pretty(d, { weekday: "narrow" })}</span>
                                 <b>{Number(d.slice(-2))}</b>
-                                <i
-                                  className={recorded ? "dot filled" : "dot"}
-                                />
+                                {status === "filled" ? (
+                                  <Check size={12} className="day-filled" />
+                                ) : (
+                                  <i
+                                    className={
+                                      status === "started"
+                                        ? "dot started"
+                                        : "dot"
+                                    }
+                                  />
+                                )}
                               </button>
                             );
                           })}
                         </div>
                         <span className="week-caption">
-                          <i className="dot filled" /> An entry, simply recorded
+                          <i className="dot started" /> Started{" "}
+                          <Check size={12} /> Filled
                         </span>
                       </section>
                     )}
@@ -687,11 +794,12 @@ export default function Journal() {
                       <input
                         aria-label="Journal month"
                         type="month"
-                        min="1900-01"
+                        min={startDate.slice(0, 7)}
                         max="2200-12"
                         value={range}
                         onChange={(e) => {
-                          if (e.target.value) setRange(e.target.value);
+                          if (e.target.value >= startDate.slice(0, 7))
+                            setRange(e.target.value);
                         }}
                       />
                     </label>
@@ -738,6 +846,14 @@ export default function Journal() {
                                   : "A blank page, whenever you need it."}
                               </span>
                             </span>
+                            {e && (
+                              <span
+                                className={`entry-status ${entryState(e, true)}`}
+                              >
+                                {e.filled ? <Check size={12} /> : null}
+                                {e.filled ? "Filled" : "Started"}
+                              </span>
+                            )}
                             <ArrowRight size={17} />
                           </button>
                         </div>
@@ -755,8 +871,8 @@ export default function Journal() {
                       : "Where would you like to begin?"}
                   </h2>
                   <p>
-                    Dates provide context. They don’t set a target or limit when
-                    you can write.
+                    Your journal begins on 17 October 2026. Dates give your
+                    observations context.
                   </p>
                   <form
                     onSubmit={(e) => {
@@ -783,7 +899,7 @@ export default function Journal() {
                           <input
                             type="date"
                             required
-                            min="1900-01-01"
+                            min={JOURNAL_START}
                             max="2200-12-31"
                             value={draft.startDate}
                             onChange={(e) => {

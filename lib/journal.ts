@@ -8,9 +8,43 @@ export type Entry = {
   alcoholQuantity: string | null;
   junkFood: string | null;
   notes: string;
+  filled: boolean;
   updatedAt?: string;
 };
 export type Phase = { startDate: string; weeks: number; title: string };
+// The journal begins here; empty earlier dates are not part of its history.
+export const JOURNAL_START = "2026-10-17";
+export const DEFAULT_PHASE: Phase = {
+  startDate: JOURNAL_START,
+  weeks: 16,
+  title: "My fitness phase",
+};
+export function entryState(entry?: Entry | null, recorded = false) {
+  if (entry?.filled) return "filled";
+  return recorded ||
+    !!(
+      entry &&
+      (entry.workout ||
+        entry.bedtime ||
+        entry.wakeTime ||
+        entry.alcohol ||
+        entry.junkFood ||
+        entry.notes.trim())
+    )
+    ? "started"
+    : "unrecorded";
+}
+export function historyDates(month: string, startDate: string) {
+  const first = month + "-01";
+  const days = new Date(
+    Number(month.slice(0, 4)),
+    Number(month.slice(5, 7)),
+    0,
+  ).getDate();
+  return Array.from({ length: days }, (_, i) => addDays(first, i)).filter(
+    (d) => d >= startDate,
+  );
+}
 export function validDate(value: unknown): value is string {
   return (
     typeof value === "string" &&
@@ -59,6 +93,10 @@ export function parseEntry(input: unknown): Entry {
     throw new Error("Notes must be 10,000 characters or fewer");
   if (x.bedtimeDay !== "previous" && x.bedtimeDay !== "same")
     throw new Error("Choose the bedtime date");
+  if (x.date < JOURNAL_START)
+    throw new Error("The journal begins on 17 October 2026");
+  if (x.filled !== undefined && typeof x.filled !== "boolean")
+    throw new Error("Filled must be true or false");
   const alcohol = pick(x.alcohol, ["yes", "no"]);
   if (
     x.alcoholQuantity !== null &&
@@ -76,6 +114,7 @@ export function parseEntry(input: unknown): Entry {
       alcohol === "yes" ? (x.alcoholQuantity as string | null) : null,
     junkFood: pick(x.junkFood, ["yes", "no"]),
     notes: x.notes,
+    filled: x.filled === true,
   };
 }
 export function parsePhase(input: unknown): Phase {
@@ -83,6 +122,7 @@ export function parsePhase(input: unknown): Phase {
   if (
     !x ||
     !validDate(x.startDate) ||
+    x.startDate < JOURNAL_START ||
     !Number.isInteger(x.weeks) ||
     x.weeks < 1 ||
     x.weeks > 104 ||
@@ -106,6 +146,7 @@ export function blankEntry(date: string): Entry {
     alcoholQuantity: null,
     junkFood: null,
     notes: "",
+    filled: false,
   };
 }
 // Prefix spreadsheet formulas so exported notes cannot execute as formulas.
@@ -126,6 +167,7 @@ export function toCsv(entries: Entry[]) {
     "junkFood",
     "notes",
     "updatedAt",
+    "filled",
   ];
   return [
     keys.join(","),
