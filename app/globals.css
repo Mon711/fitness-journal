@@ -504,12 +504,37 @@ h1 {
 .primary:hover {
   background: #1c432f;
 }
-.delete-link {
-  font-size: 10px;
-  color: #8e7166;
+.entry-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #bac6b0;
+  border-radius: 8px;
+  background: #f5f7ef;
+  color: #40563b;
+  font-size: 12px;
   min-height: 44px;
-  padding: 12px 0;
-  margin-top: 6px;
+  padding: 10px 14px;
+}
+.entry-action:hover {
+  background: #e9eee0;
+}
+.entry-action.delete-entry {
+  border-color: #d6b6a9;
+  background: #fff8f3;
+  color: #8c4330;
+}
+.entry-action.delete-entry:hover {
+  background: #f7e8df;
+}
+.entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
 }
 .phase-card {
   border: 1px solid #e1e7d7;
@@ -1283,10 +1308,6 @@ h1 {
   display: inline-flex;
   margin-top: 10px;
   margin-right: 18px;
-  min-height: 44px;
-}
-.reopen-entry {
-  margin-top: 10px;
   min-height: 44px;
 }
 .dot.started {

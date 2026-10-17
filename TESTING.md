@@ -1,5 +1,15 @@
 # Verification record — 17 October 2026
 
+## In-page entry actions update
+
+- Removed the explicit scroll-to-top after saving and entering edit mode. Saves and Started/Filled changes use the confirmed server response to update the current entry and in-memory history; deletion removes the date locally only after server success. The initial page load still reads journal/phase data normally.
+- Added outlined, icon-labelled 44px-minimum buttons for **Mark as started again** and **Delete this entry**, including the delete control in edit mode. Pending operations disable controls; deletion keeps its confirmation and shows Deleting while pending.
+- **18 unit/service tests passed**, **TypeScript passed**, **production build passed**, and **all 14 built API/MCP scenarios passed** against isolated local synthetic data.
+- **Actual browser checks passed** in the isolated port-5175 preview once browser access became available: reopened a Filled synthetic entry as Started, created a separate October 18 record, saved it, edited its notes, marked it Filled, inspected the updated Journal row, cancelled deletion, and then deleted that disposable record. The date and week marker returned to Not recorded. Save, reopen and delete stayed within the page at the scrolled position; no forced return to the top was observed.
+- The development-server request log showed only the expected PUT/DELETE requests for those actions, with no additional document load or journal/phase reload. The page and quote remained mounted. Natural scroll adjustment when the long form becomes a shorter summary is expected.
+- Inspected the actual UI at **390×844 phone**, **768×1024 tablet** and **1440×1100 desktop** sizes. The outlined icon buttons have visible borders and 44px minimum height; the action row wraps on phones and sits side by side on larger screens. Saved synthetic phone/desktop screenshots in ignored `outputs/`.
+- No ordinary local journal records or hosted database were modified. All required checks passed before GitHub/Sites source synchronization and artifact preparation; production publication still awaits preview review.
+
 ## Daily-quote update
 
 - **18 unit/service tests passed**: the original 11 journal tests plus seven quote tests using an in-memory SQLite database and the actual quote-cache migrations. They cover India-midnight rollover, bounded plain-text validation, daily reuse, next-day fetch, concurrent request claiming, outages/cooldown/recovery, rate limits, rejected redirects malformed replies, and isolation between signed-in identities.

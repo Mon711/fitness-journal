@@ -1,4 +1,4 @@
-import { Check, PencilLine } from "lucide-react";
+import { Check, PencilLine, RotateCcw, Trash2 } from "lucide-react";
 import { addDays, type Entry } from "../lib/journal";
 function clockDate(date: string) {
   return new Date(date + "T12:00:00").toLocaleDateString("en", {
@@ -46,11 +46,11 @@ export default function EntrySummary({
         </div>
       </div>
       <div className="summary-actions">
-        <button className="secondary" onClick={onEdit} disabled={busy}>
+        <button type="button" className="secondary" onClick={onEdit} disabled={busy}>
           <PencilLine size={16} /> Edit entry
         </button>
         {!entry.filled && (
-          <button className="primary" onClick={onFilled} disabled={busy}>
+          <button type="button" className="primary" onClick={onFilled} disabled={busy}>
             {busy ? "Saving…" : "Mark day as filled"}
             <Check size={17} />
           </button>
@@ -98,18 +98,27 @@ export default function EntrySummary({
       <p className="sleep-note">
         Clock times only — no sleep duration is inferred.
       </p>
-      {entry.filled && (
+      <div className="entry-actions">
+        {entry.filled && (
+          <button
+            type="button"
+            className="entry-action"
+            onClick={onReopen}
+            disabled={busy}
+          >
+            <RotateCcw size={16} aria-hidden="true" />
+            {busy ? "Saving…" : "Mark as started again"}
+          </button>
+        )}
         <button
-          className="clear-option reopen-entry"
-          onClick={onReopen}
+          type="button"
+          className="entry-action delete-entry"
+          onClick={onDelete}
           disabled={busy}
         >
-          Mark as started again
+          <Trash2 size={16} aria-hidden="true" /> Delete this entry
         </button>
-      )}
-      <button className="delete-link" onClick={onDelete} disabled={busy}>
-        Delete this entry
-      </button>
+      </div>
     </div>
   );
 }

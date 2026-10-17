@@ -17,6 +17,7 @@ import {
   Download,
   LockKeyhole,
   PencilLine,
+  Trash2,
 } from "lucide-react";
 import {
   addDays,
@@ -159,12 +160,14 @@ export default function Journal() {
         method: "PUT",
         body: JSON.stringify({ ...entry, filled }),
       });
-      await refresh();
+      setEntries((current) => [
+        ...current.filter((item) => item.date !== result.entry.date),
+        result.entry,
+      ]);
       setDirty(false);
       setEntry(result.entry);
       setSaved(true);
       setEditing(false);
-      window.scrollTo(0, 0);
       setNotice("");
     } catch (e) {
       setError((e as Error).message);
@@ -174,9 +177,10 @@ export default function Journal() {
   }
   async function remove() {
     setBusy(true);
+    setError("");
     try {
       await api("/api/entries?date=" + date, { method: "DELETE" });
-      await refresh();
+      setEntries((current) => current.filter((item) => item.date !== date));
       setEntry(blankEntry(date));
       setSaved(false);
       setEditing(true);
@@ -392,7 +396,7 @@ export default function Journal() {
             <>
               {tab === "entry" && (
                 <div className="content-grid">
-                  <section className="card entry-card">
+                  <section className="card entry-card" aria-busy={busy}>
                     <div className="entry-header">
                       <div>
                         <p className="eyebrow">DAILY ENTRY</p>
@@ -445,7 +449,6 @@ export default function Journal() {
                         onEdit={() => {
                           setEditing(true);
                           setConfirmDelete(false);
-                          window.scrollTo(0, 0);
                         }}
                         onFilled={() => save(true)}
                         onReopen={() => save(false)}
@@ -644,10 +647,11 @@ export default function Journal() {
                           )}
                           {saved && (
                             <button
-                              className="delete-link"
+                              className="entry-action delete-entry"
                               type="button"
                               onClick={() => setConfirmDelete(true)}
                             >
+                              <Trash2 size={16} aria-hidden="true" />
                               Delete this entry
                             </button>
                           )}
@@ -677,7 +681,7 @@ export default function Journal() {
                             onClick={remove}
                             disabled={busy}
                           >
-                            Delete entry
+                            {busy ? "Deleting…" : "Delete entry"}
                           </button>
                         </div>
                       </div>

@@ -30,6 +30,8 @@ The Site is registered but must be published only after preview review. A saved 
 
 After saving, the date and surrounding page remain visible, with a read-only summary instead of editable choices. Choose **Edit entry** to make changes. Edits preserve an existing Filled confirmation; **Mark as started again** explicitly removes that confirmation without removing observations. History and the week strip show the same state.
 
+Saving, marking Filled/Started, editing and deleting update within the current page. A successful save uses the server's returned entry to update the summary and local history list; a successful delete removes that date from the list. Neither operation reloads the document or deliberately scrolls to the top. The shorter saved summary can still cause the browser to adjust scrolling to fit the remaining content. Navigating to another day or section intentionally starts at the top. Secondary entry actions have outlined buttons with icons and at least 44px touch targets; deletion still requires confirmation.
+
 `entries.filled` stores this boolean (true/false) flag. Migration `0001_dapper_deadpool.sql` adds it with a false default, preserving all existing records as Started. `lib/storage.ts` converts SQLite's 0/1 storage into a boolean for the browser and MCP. CSV includes the flag as its last column. No automatic scoring, completeness percentage or mandatory fields are introduced.
 
 ## Daily quote
