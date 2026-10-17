@@ -15,6 +15,20 @@
       "when": 1792226832796,
       "tag": "0001_dapper_deadpool",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792227906974,
+      "tag": "0002_dizzy_leader",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1792228368596,
+      "tag": "0003_true_iron_fist",
+      "breakpoints": true
     }
   ]
 }

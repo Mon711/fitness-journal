@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import EntrySummary from "./entry-summary";
+import DailyQuote from "./daily-quote";
 import {
   BookOpen,
   CalendarDays,
@@ -770,15 +771,7 @@ export default function Journal() {
                         </span>
                       </section>
                     )}
-                    <div className="gentle-note">
-                      <span>“</span>
-                      <p>
-                        Record what happened.
-                        <br />
-                        Leave the rest unrecorded.
-                      </p>
-                      <div>THIS IS A JOURNAL, NOT A SCORECARD.</div>
-                    </div>
+                    <DailyQuote />
                   </aside>
                 </div>
               )}

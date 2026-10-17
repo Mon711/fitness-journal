@@ -32,6 +32,20 @@ After saving, the date and surrounding page remain visible, with a read-only sum
 
 `entries.filled` stores this boolean (true/false) flag. Migration `0001_dapper_deadpool.sql` adds it with a false default, preserving all existing records as Started. `lib/storage.ts` converts SQLite's 0/1 storage into a boolean for the browser and MCP. CSV includes the flag as its last column. No automatic scoring, completeness percentage or mandatory fields are introduced.
 
+## Daily quote
+
+A small **A thought for today** card appears below the week card, and below the main journal content on phones. It is independent of your selected entry date and has no effect on entry status or saving.
+
+1. The browser requests the private `/api/quote` endpoint separately from journal loading.
+2. The server requests one random quote from [ZenQuotes](https://zenquotes.io/), whose [free API](https://docs.zenquotes.io/zenquotes-documentation/) needs no account/key and requires attribution. The card includes that source link.
+3. `lib/quotes.ts` stores that quote for the calendar day in **Asia/Kolkata**. It remains the same across devices and reloads. An open visible page checks for the next day once a minute; reopening the page also checks.
+4. The `quote_cache` table holds public quote text, author, day and lookup time, keyed to the trusted signed-in Site identity. Its reads and updates use that identity, just like the journal; the identity is never sent to the quote provider. No journal observations are stored in this cache. An atomic database claim avoids simultaneous tabs making duplicate upstream requests.
+5. Failed requests have a 3.5-second timeout and a 15-minute cooldown. Missing or invalid quotes leave the card hidden, without interrupting the journal. Free providers have no guaranteed availability, and quotes can occasionally repeat.
+
+The upstream request uses a fixed HTTPS URL, a fresh Accept header, no cookies or credentials, no user-supplied URL and no journal/account data. Redirects are handled manually and rejected unless the original response succeeds. Only bounded plain text is accepted; provider HTML, images and links are discarded. React escapes rendered text. The attribution link suppresses referrer information. ZenQuotes receives the server's ordinary network request; there are no embedded third-party scripts or browser requests to its API.
+
+`0002_dizzy_leader.sql` creates the quote cache; `0003_true_iron_fist.sql` adds identity scoping while preserving any earlier public cache text. The initial migration had already been applied locally, so it remains unchanged. Neither migration changes journal entries or phase settings. `tests/quotes.test.mjs` uses an in-memory SQLite database and mocked provider replies to test caching, concurrency, India-midnight rollover, validation and failures. The real provider and actual card are checked separately through the isolated local preview.
+
 ## Privacy and time conventions
 
 - Keep the Site's audience owner-only. Sites authenticates visitors and MCP callers and supplies trusted identity headers; the app rejects requests with missing identity. Other identities cannot read or modify your rows, even if the Site audience changes accidentally.
@@ -66,9 +80,11 @@ This changes only local dependency/cache files. A successful install exits witho
 rtk npm run build
 rtk proxy node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_large_spitfire.sql
 rtk proxy node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_dapper_deadpool.sql
+rtk proxy node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0002_dizzy_leader.sql
+rtk proxy node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0003_true_iron_fist.sql
 ```
 
-The build produces `dist/`, including the Worker configuration. A Worker is the server program Sites runs to handle requests. The database commands apply both migrations **once, in order, to a new local database**. `--local` prevents hosted database access; `--persist-to` selects ignored development state. Expect two table creation statements and then one statement adding the Filled field. If you already have the original tables, apply only `0001_dapper_deadpool.sql`. Do not replay applied migrations. This checkout already has both migrations applied, with its existing entry preserved.
+The build produces `dist/`, including the Worker configuration. A Worker is the server program Sites runs to handle requests. The database commands apply all four migrations **once, in order, to a new local database**. `--local` prevents hosted database access; `--persist-to` selects ignored development state. Expect the journal tables, the Filled column, and the quote cache table to be created. For an existing checkout, apply only migrations not already applied. Do not replay applied migrations. This checkout has all four applied, with its existing entry preserved.
 
 For future schema changes, update `db/schema.ts`, run `rtk npm run db:generate`, inspect the new SQL and metadata, rebuild, then apply **only pending new SQL files** locally in order using the same command with the new filename. Commit migrations. Never modify already-applied migration files. Hosted migrations are handled by Sites; do not add `--remote` to local test commands.
 
@@ -78,7 +94,7 @@ For future schema changes, update `db/schema.ts`, run `rtk npm run db:generate`,
 rtk npm run dev -- --hostname 127.0.0.1
 ```
 
-This starts the development server on loopback (this Mac only), usually <http://127.0.0.1:5173>. It does not publish. The sign-in redirect uses a synthetic `local_seedy` account, not your production records. `Ctrl+C` stops the server. Your local synthetic records persist in ignored `.wrangler/state`.
+This starts the development server on loopback (this Mac only), usually <http://127.0.0.1:5173>. It does not publish. The sign-in redirect uses a synthetic `local_seedy` account, not your production records. `Ctrl+C` stops the server. Local records persist in ignored `.wrangler/state`.
 
 ## Test before every release
 

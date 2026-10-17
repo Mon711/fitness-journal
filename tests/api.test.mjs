@@ -58,7 +58,7 @@ test("built app: private CRUD, isolation, CSV and read-only MCP share one databa
     };
   try {
     await t.test("anonymous data and MCP access denied", async () => {
-      for (const path of ["/api/entries", "/api/phase", "/mcp"]) {
+      for (const path of ["/api/entries", "/api/phase", "/api/quote", "/mcp"]) {
         const r = await request(path, {
           user: null,
           method: path === "/mcp" ? "POST" : "GET",
@@ -286,6 +286,24 @@ test("built app: private CRUD, isolation, CSV and read-only MCP share one databa
             })
           ).status,
           400,
+        );
+      },
+    );
+    await t.test(
+      "optional quote endpoint stays independent of saved journal entries",
+      async () => {
+        const response = await request("/api/quote");
+        assert.equal(response.status, 200);
+        const data = await response.json();
+        assert.ok(
+          data.quote === null ||
+            (typeof data.quote.day === "string" &&
+              typeof data.quote.text === "string" &&
+              typeof data.quote.author === "string"),
+        );
+        assert.equal(
+          content(await rpc("get_entry", { date })).entry.workout,
+          "D",
         );
       },
     );

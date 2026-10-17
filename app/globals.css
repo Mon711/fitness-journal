@@ -625,29 +625,6 @@ h1 {
   font-size: 9px;
   color: #929b87;
 }
-.gentle-note {
-  margin-top: 33px;
-  text-align: center;
-  color: #949d89;
-  padding: 0 5px;
-}
-.gentle-note > span {
-  font-family: Georgia, serif;
-  font-size: 44px;
-  height: 32px;
-  display: block;
-}
-.gentle-note p {
-  font-family: Georgia, serif;
-  font-style: italic;
-  font-size: 15px;
-  line-height: 1.8;
-}
-.gentle-note > div {
-  font-size: 7px;
-  letter-spacing: 1.5px;
-  margin-top: 19px;
-}
 .page-footer {
   display: flex;
   align-items: center;
@@ -955,9 +932,6 @@ h1 {
   }
   .week-card {
     margin: 0;
-  }
-  .gentle-note {
-    display: none;
   }
   .phase-icon {
     display: none;
@@ -1372,5 +1346,65 @@ h1 {
   }
   .week-caption {
     gap: 8px;
+  }
+}
+
+.daily-quote {
+  margin-top: 23px;
+  border-top: 1px solid var(--line);
+  padding: 23px 8px 4px;
+  color: #68765c;
+}
+.daily-quote > .eyebrow {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: #8a957d;
+}
+.daily-quote blockquote {
+  margin: 15px 0 10px;
+}
+.daily-quote blockquote p {
+  font-family: Georgia, serif;
+  font-size: 15px;
+  line-height: 1.8;
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+.daily-quote blockquote footer {
+  font-size: 10px;
+  color: #818e75;
+  margin-top: 11px;
+  line-height: 1.6;
+}
+.daily-quote > a {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  color: #78866b;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 44px;
+}
+.daily-quote > a:hover {
+  color: #35553b;
+}
+@media (max-width: 1000px) {
+  .daily-quote {
+    grid-column: 1/-1;
+    margin-top: 0;
+    padding: 23px 12px 0;
+    max-width: 560px;
+  }
+  .daily-quote blockquote p {
+    font-size: 15px;
+  }
+}
+@media (max-width: 650px) {
+  .daily-quote {
+    margin: 4px 3px 0;
+    padding: 23px 7px 0;
+  }
+  .daily-quote blockquote p {
+    font-size: 15px;
   }
 }

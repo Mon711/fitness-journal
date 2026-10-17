@@ -28,3 +28,16 @@ export const phases = sqliteTable("phases", {
   weeks: integer("weeks").notNull(),
   title: text("title").notNull(),
 });
+
+// Public quote text, cached privately for the signed-in Site identity.
+export const quoteCache = sqliteTable(
+  "quote_cache",
+  {
+    owner: text("owner").notNull().default(""),
+    day: text("day").notNull(),
+    text: text("text"),
+    author: text("author"),
+    checkedAt: integer("checked_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.owner, t.day] })],
+);
