@@ -11,7 +11,7 @@ All test observations are synthetic. Hosted production journal records were neve
 - Production build: **passed**, generating the page, two browser APIs and `/mcp`.
 - Initial SQL migration: applied successfully to the local database only.
 
-One first integration attempt ran while the local Worker was starting and received a transient 503 instead of the expected denial. Once ready, the unchanged denial assertions passed. HTTP test calls now have an eight-second timeout. No assertion was weakened to accept an error status.
+Local test infrastructure needed two fixes: the macOS Codex sandbox produced native filesystem watcher errors (`EMFILE`) and occasional Worker restart 503s, so `scripts/sites-env.mjs` now selects polling for that sandbox. The HTTP test helper now consumes every response body, including denial responses, before reusing a connection; this removed intermittent connection timeouts. Calls have an eight-second timeout. The final complete integration suite passed twice consecutively. No assertion was weakened to accept an error status.
 
 ## Actual browser checks
 

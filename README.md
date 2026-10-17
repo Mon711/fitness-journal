@@ -84,7 +84,7 @@ In a second terminal, start the built server:
 rtk npm start -- --port 8787
 ```
 
-This runs the production build **locally**, bound to 127.0.0.1. It uses the local D1 database and does not simulate browser sign-in. Wait until Wrangler reports readiness. Then run:
+This runs the production build **locally**, bound to 127.0.0.1. It uses the local D1 database and does not simulate browser sign-in. Wait until Wrangler reports readiness. Stop the development preview before running built-server tests, and avoid rebuilding while the built server runs. In the macOS Codex sandbox, the local environment helper selects file polling to avoid unsupported native filesystem watchers. Then run:
 
 ```sh
 rtk npm run test:api

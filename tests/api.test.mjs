@@ -15,13 +15,16 @@ async function request(
     headers["oai-authenticated-user-email"] = user + "@example.test";
   }
   if (origin) headers.Origin = origin;
-  return fetch(base + path, {
+  const response = await fetch(base + path, {
     method,
     headers,
     body: data === undefined ? undefined : JSON.stringify(data),
     redirect: "manual",
     signal: AbortSignal.timeout(8000),
   });
+  // Drain every response, including denial cases, before reusing a connection.
+  const payload = await response.arrayBuffer();
+  return new Response(payload, { status: response.status, headers: response.headers });
 }
 async function rpc(name, args = {}, user = userA) {
   const r = await request("/mcp", {
