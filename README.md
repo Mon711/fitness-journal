@@ -8,7 +8,7 @@ There are no scores, streaks, progress targets, or judgments about empty days. B
 
 The source lives in `/Users/mrinalsood/Developer/fitness-journal`, with GitHub at <https://github.com/Mon711/fitness-journal>. The tracked `.openai/hosting.json` identifies the ChatGPT Site. GitHub is your development repository; Sites also requires a platform source repository. Both receive **the same Git commit from this checkout**, not separate maintained versions. Never edit the Site elsewhere without first bringing those commits back into this checkout.
 
-The Site is registered but must be published only after preview review. A saved Site version is not a deployment. Every URL returned by a Sites deployment operation is a production URL; it is not a staging environment. Use the local preview for review.
+The Site is live privately at <https://fitness-journal.mrinalsood711.chatgpt.site>. Future updates must be published only after local tests and preview review. A saved Site version is not a deployment. Every URL returned by a Sites deployment operation is a production URL; it is not a staging environment. Use the local preview for review.
 
 ## How the application works
 
@@ -16,7 +16,7 @@ The Site is registered but must be published only after preview review. A saved 
 2. `app/journal.tsx` is the React interface. React updates the visible form when you select a different day or observation. Native date and time controls use the phone/browser's own pickers.
 3. `app/api/entries/route.ts` and `app/api/phase/route.ts` accept browser requests. An API is the server interface the page uses to read or change records. Each route verifies identity; writes also check the request originated from this journal.
 4. `lib/storage.ts` reads and writes Cloudflare D1, a persistent SQL database hosted with the Site. Every query includes the trusted user's Site-scoped ID. A user can have one entry per date. Saving the same day updates it; changing the date selector opens that day's record rather than moving an existing record.
-5. `app/mcp/route.ts` provides three read-only tools over the **same storage functions and database**. MCP is the protocol ChatGPT uses to call those tools. It cannot write or delete entries.
+5. `app/mcp/route.ts` provides seven tools over the **same storage functions and database**. MCP is the protocol ChatGPT uses to call those tools. Three tools read records; four can create/edit/delete entries or change/reset timeline settings, always for the authenticated caller only.
 6. `db/schema.ts` describes database tables. `drizzle/` contains the generated SQL migrations, which are versioned instructions for creating/changing those tables. Sites applies these to hosted D1 at publication. Requests never create tables.
 
 `lib/journal.ts` contains shared validation, date numbering and CSV formatting. `lib/http.ts` contains request authorization and safe error responses. `app/globals.css` handles the responsive layout. The Sites starter's `build/`, `scripts/` and Vite integration remain part of the supported hosting pipeline.
@@ -156,10 +156,18 @@ The manifest declares `capabilities: ["mcp"]`. `POST /mcp` supports discovery an
 | `get_entry`   | `date` in YYYY-MM-DD           | One recorded entry, or null                              |
 | `get_entries` | inclusive `start`, `end` dates | Recorded entries, oldest first                           |
 | `get_phase`   | no arguments                   | Starting date, weeks, title, and interpretation metadata |
+| `save_entry` | date plus fields to change | Create or edit that caller's entry; omitted fields stay unchanged |
+| `delete_entry` | date | Permanently remove only that caller's dated entry |
+| `update_phase` | one or more of startDate, weeks, title | Create or edit that caller's timeline settings |
+| `reset_phase` | no arguments | Delete customized settings and restore October 17, 16 weeks and the default title; preserve every entry |
 
-All tools require the caller's trusted identity and are marked read-only. Sleep and missing-entry semantics are included in tool descriptions/metadata.
+All seven tools require the caller's trusted Sites identity, including both verified user ID and email. The identity comes from Sites authentication, never tool arguments. Unknown arguments (including owner, account or email selectors) are rejected. Every storage operation uses the trusted user ID in its SQL condition or row key. The Site remains owner-private; installation of the plugin alone does not grant access to someone else's journal.
 
-Publishing with MCP enabled causes Sites to create/update its private App and plugin. A saved, unpublished version does not activate the connection. After first publication, inspect the Site with `include_mcp_connection: true`; reuse the returned plugin, then install/connect it through the native plugin UI if it is not already available. No separate custom plugin, local MCP config, or OAuth credentials are needed. Verify a read-only call after connection. Local MCP checks pass, but hosted installation and authentication can only be verified after publishing.
+The three read tools are marked read-only. Write tools are marked as modifying existing data; delete/reset descriptions require user confirmation. `save_entry` accepts partial edits: supplying just date and workout preserves saved notes, times and the Filled flag. For a new date, unmentioned observations remain unrecorded. Explicit null clears an optional field; an empty string clears notes. Setting alcohol to No/unrecorded clears quantity. Only explicit user confirmation should set Filled. `update_phase` also preserves omitted settings. Updates use the same validation as the UI. Simultaneous edits to one entry or timeline use last-save-wins; read the current record before editing.
+
+Authenticated server-to-server MCP requests normally omit the browser Origin header. If Origin is present, it must match the Site; cross-origin browser calls are rejected. The endpoint requires application/json to prevent simple form submissions. Browser API writes retain their stricter mandatory same-origin check. The local test harness simulates trusted headers only on loopback; hosted callers must authenticate through Sites, which supplies those trusted headers. No MCP authentication bypass, client-selected owner, anonymous access or database migration was added.
+
+Publishing with MCP enabled causes Sites to create/update its private App and plugin. A saved, unpublished version does not activate the connection. Inspect the Site with `include_mcp_connection: true`; reuse the returned plugin, then install/connect it through the native plugin UI if needed. No separate custom plugin, local MCP config, or OAuth credentials are needed. The existing Fitness Journal plugin is installed in the owner's account, as confirmed by Plugin Management. Republish refreshes its tools; a new chat or reconnect may be needed for them to appear. Verify a read-only call after connection. Do not insert sample records into the hosted journal to test write access.
 
 ## Version 1 boundaries
 

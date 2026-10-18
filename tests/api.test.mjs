@@ -7,15 +7,16 @@ const userA = "synthetic-test-alex",
   userB = "synthetic-test-blair";
 async function request(
   path,
-  { user = userA, method = "GET", data, origin = base } = {},
+  { user = userA, method = "GET", data, origin = base, contentType = "application/json", omitIdentity } = {},
 ) {
   // Fresh connections avoid stale local Wrangler sockets after Worker restarts.
-  const headers = { "Content-Type": "application/json", Connection: "close" };
+  const headers = { "Content-Type": contentType, Connection: "close" };
   if (user) {
     headers["oai-authenticated-user-id"] = user;
     headers["oai-authenticated-user-email"] = user + "@example.test";
   }
   if (origin) headers.Origin = origin;
+  if (omitIdentity) delete headers[omitIdentity];
   const response = await fetch(base + path, {
     method,
     headers,
@@ -47,7 +48,7 @@ async function rpc(name, args = {}, user = userA) {
 function content(x) {
   return JSON.parse(x.result.content[0].text);
 }
-test("built app: private CRUD, isolation, CSV and read-only MCP share one database", async (t) => {
+test("built app: private CRUD, isolation, CSV and authenticated MCP share one database", async (t) => {
   const date = "2091-01-17",
     entry = {
       ...blankEntry(date),
@@ -197,17 +198,18 @@ test("built app: private CRUD, isolation, CSV and read-only MCP share one databa
       assert.ok(!csv.includes('"Rest"'));
     });
     await t.test(
-      "MCP discovery exposes only three read-only tools and rejects writes",
+      "MCP discovery distinguishes read and write tools and rejects unknown calls",
       async () => {
         const r = await request("/mcp", {
           method: "POST",
           data: { jsonrpc: "2.0", id: 2, method: "tools/list" },
         });
         const x = await r.json();
-        assert.equal(x.result.tools.length, 3);
-        assert.ok(x.result.tools.every((x) => x.annotations.readOnlyHint));
+        assert.equal(x.result.tools.length, 7);
+        assert.equal(x.result.tools.filter((x) => x.annotations.readOnlyHint).length, 3);
+        assert.ok(x.result.tools.filter((x) => !x.annotations.readOnlyHint).every((x) => x.annotations.destructiveHint));
         assert.equal(
-          (await rpc("delete_entry", { date })).result.isError,
+          (await rpc("delete_everything", { date })).result.isError,
           true,
         );
         assert.equal(
@@ -228,6 +230,73 @@ test("built app: private CRUD, isolation, CSV and read-only MCP share one databa
         ]);
       },
     );
+    await t.test("MCP writes require both trusted identity headers and reject browser cross-origin or simple form requests", async () => {
+      for (const name of ["save_entry", "delete_entry", "update_phase", "reset_phase"]) {
+        const data = { jsonrpc: "2.0", id: 4, method: "tools/call", params: { name, arguments: name.includes("entry") ? { date, workout: "B" } : { weeks: 20 } } };
+        for (const options of [{ user: null }, { omitIdentity: "oai-authenticated-user-id" }, { omitIdentity: "oai-authenticated-user-email" }])
+          assert.equal((await request("/mcp", { method: "POST", data, ...options })).status, 401);
+        assert.equal((await request("/mcp", { method: "POST", data, origin: "https://other.example" })).status, 403);
+        assert.equal((await request("/mcp", { method: "POST", data, contentType: "text/plain" })).status, 415);
+      }
+      assert.equal(content(await rpc("get_entry", { date })).entry.workout, "C");
+    });
+    await t.test("MCP creates and patches only the signed-in user's entry and preserves unmentioned fields", async () => {
+      const saved = content(await rpc("save_entry", { date, workout: "E", alcohol: "yes", alcoholQuantity: "1 glass", filled: true })).entry;
+      assert.equal(saved.workout, "E");
+      assert.equal(saved.notes, "Synthetic updated");
+      assert.equal(saved.bedtime, "23:50");
+      assert.equal(saved.filled, true);
+      const patched = content(await rpc("save_entry", { date, notes: "Synthetic MCP edit", alcohol: "no" })).entry;
+      assert.equal(patched.workout, "E");
+      assert.equal(patched.alcoholQuantity, null);
+      assert.equal(patched.filled, true);
+      const browser = await (await request("/api/entries?date=" + date)).json();
+      assert.equal(browser.entry.notes, "Synthetic MCP edit");
+      assert.equal(content(await rpc("get_entry", { date }, userB)).entry.workout, "Rest");
+      // A normal authenticated server-to-server MCP call has no browser Origin.
+      const response = await request("/mcp", { method: "POST", origin: null, data: { jsonrpc: "2.0", id: 8, method: "tools/call", params: { name: "save_entry", arguments: { date, filled: false } } } });
+      assert.equal(content(await response.json()).entry.filled, false);
+    });
+    await t.test("MCP cannot target another owner; invalid patches never change saved records", async () => {
+      for (const name of ["get_entry", "save_entry", "delete_entry", "get_phase", "update_phase", "reset_phase"]) {
+        const args = name.includes("entry") ? { date, owner: userB } : { owner: userB };
+        assert.equal((await rpc(name, args)).result.isError, true);
+      }
+      for (const args of [{ date }, { date, bedtime: "25:10" }, { date, filled: "yes" }, { date, updatedAt: "forged" }, { date: "2026-10-16", workout: "A" }])
+        assert.equal((await rpc("save_entry", args)).result.isError, true);
+      for (const args of [null, [], "text", 1]) assert.equal((await rpc("save_entry", args)).result.isError, true);
+      assert.equal(content(await rpc("get_entry", { date })).entry.notes, "Synthetic MCP edit");
+      assert.equal(content(await rpc("get_entry", { date }, userB)).entry.workout, "Rest");
+    });
+    await t.test("MCP timeline create, partial edit and reset are isolated and never delete entries", async () => {
+      const p = content(await rpc("update_phase", { weeks: 20 })).phase;
+      assert.deepEqual(p, { startDate: date, weeks: 20, title: "Synthetic phase" });
+      assert.equal((await (await request("/api/phase")).json()).phase.weeks, 20);
+      assert.equal((await rpc("update_phase", { weeks: 0 })).result.isError, true);
+      assert.equal((await rpc("update_phase", { startDate: "2026-10-16" })).result.isError, true);
+      assert.deepEqual(content(await rpc("get_phase", {}, userB)).phase, DEFAULT_PHASE);
+      await rpc("update_phase", { weeks: 12, title: "Synthetic second timeline" }, userB);
+      await rpc("reset_phase", {}, userB);
+      assert.equal(content(await rpc("get_phase")).phase.weeks, 20);
+      await rpc("update_phase", { title: "Synthetic second timeline" }, userB);
+      const reset = content(await rpc("reset_phase"));
+      assert.deepEqual(reset.phase, DEFAULT_PHASE);
+      assert.equal(content(await rpc("get_phase", {}, userB)).phase.title, "Synthetic second timeline");
+      assert.equal(content(await rpc("get_entry", { date })).entry.notes, "Synthetic MCP edit");
+      const created = content(await rpc("update_phase", { title: "Synthetic new phase" })).phase;
+      assert.equal(created.weeks, 16);
+      assert.equal(created.title, "Synthetic new phase");
+    });
+    await t.test("MCP delete cannot remove another user's same-date record; a new entry retains null defaults", async () => {
+      assert.equal(content(await rpc("delete_entry", { date }, userB)).deleted, true);
+      assert.equal(content(await rpc("get_entry", { date }, userB)).entry, null);
+      assert.equal(content(await rpc("get_entry", { date })).entry.notes, "Synthetic MCP edit");
+      const created = content(await rpc("save_entry", { date, workout: "Rest" }, userB)).entry;
+      assert.equal(created.workout, "Rest");
+      assert.equal(created.notes, "");
+      assert.equal(created.alcohol, null);
+      assert.equal(created.filled, false);
+    });
     await t.test(
       "explicit filled state survives browser and MCP reads, and can be reopened",
       async () => {
@@ -312,7 +381,9 @@ test("built app: private CRUD, isolation, CSV and read-only MCP share one databa
       assert.equal(content(await rpc("get_entry", { date })).entry, null);
     });
   } finally {
-    for (const user of [userA, userB])
+    for (const user of [userA, userB]) {
       await request("/api/entries?date=" + date, { user, method: "DELETE" });
+      await rpc("reset_phase", {}, user);
+    }
   }
 });

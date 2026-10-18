@@ -81,3 +81,6 @@ export async function savePhase(owner: string, p: Phase) {
     .bind(owner, p.startDate, p.weeks, p.title)
     .run();
 }
+export async function resetPhase(owner: string) {
+  await db().prepare("DELETE FROM phases WHERE owner=?").bind(owner).run();
+}

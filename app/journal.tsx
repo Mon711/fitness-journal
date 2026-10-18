@@ -951,8 +951,8 @@ export default function Journal() {
                       <h3>Personal means private.</h3>
                       <p>
                         Your journal belongs to your signed-in account. The
-                        ChatGPT connection can read your observations, and
-                        cannot change or delete them.
+                        ChatGPT connection can read and update your entries
+                        and timeline settings, only for your signed-in account.
                       </p>
                     </div>
                   </div>

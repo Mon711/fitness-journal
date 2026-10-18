@@ -1,10 +1,37 @@
-import { owner, json, failure, body } from "../../lib/http";
+import { owner, json, failure, body, HttpError } from "../../lib/http";
 import { tools } from "../../lib/mcp";
 import { validDate } from "../../lib/journal";
-import { getEntry, listEntries, getPhase } from "../../lib/storage";
+import {
+  argumentsObject,
+  onlyKeys,
+  mergeEntry,
+  mergePhase,
+} from "../../lib/mcp-input";
+import {
+  getEntry,
+  listEntries,
+  getPhase,
+  saveEntry,
+  deleteEntry,
+  savePhase,
+  resetPhase,
+} from "../../lib/storage";
 export async function POST(r: Request) {
   try {
     const user = await owner(r);
+    // MCP clients authenticate through Sites and normally have no Origin.
+    // Browser-originated requests must still come from this Site.
+    const origin = r.headers.get("origin");
+    if (origin && origin !== new URL(r.url).origin)
+      throw new HttpError(
+        403,
+        "This request must come from the journal or an authenticated MCP client",
+      );
+    if (
+      r.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !==
+      "application/json"
+    )
+      throw new HttpError(415, "MCP requests must use application/json");
     const x = await body(r);
     if (
       !x ||
@@ -27,13 +54,13 @@ export async function POST(r: Request) {
       return reply({
         supportedVersions: ["2026-07-28"],
         capabilities: { tools: {} },
-        serverInfo: { name: "fitness-journal", version: "1.0.0" },
+        serverInfo: { name: "fitness-journal", version: "1.1.0" },
       });
     if (x.method === "initialize")
       return reply({
         protocolVersion: "2025-03-26",
         capabilities: { tools: {} },
-        serverInfo: { name: "fitness-journal", version: "1.0.0" },
+        serverInfo: { name: "fitness-journal", version: "1.1.0" },
       });
     if (x.method === "ping") return reply({});
     if (x.method === "tools/list") return reply({ tools });
@@ -44,7 +71,9 @@ export async function POST(r: Request) {
         error: { code: -32601, message: "Method not found" },
       });
     try {
-      const a = x.params?.arguments ?? {};
+      const a = argumentsObject(
+        x.params?.arguments === undefined ? {} : x.params.arguments,
+      );
       const name = x.params?.name;
       let data;
       if (
@@ -73,7 +102,24 @@ export async function POST(r: Request) {
             wakeTimeDay: "entry date",
           },
         };
-      else
+      else if (name === "save_entry" && validDate(a.date)) {
+        const current = await getEntry(user, a.date);
+        const entry = mergeEntry(a, current);
+        await saveEntry(user, entry);
+        data = { entry: await getEntry(user, entry.date) };
+      } else if (name === "delete_entry" && validDate(a.date)) {
+        onlyKeys(a, ["date"]);
+        await deleteEntry(user, a.date);
+        data = { deleted: true, date: a.date };
+      } else if (name === "update_phase") {
+        const phase = mergePhase(a, await getPhase(user));
+        await savePhase(user, phase);
+        data = { phase };
+      } else if (name === "reset_phase") {
+        onlyKeys(a, []);
+        await resetPhase(user);
+        data = { phase: await getPhase(user), reset: true };
+      } else
         throw new Error(
           "Unknown tool or invalid arguments. Dates must be YYYY-MM-DD.",
         );
