@@ -23,6 +23,10 @@ The Site is live privately at <https://fitness-journal.mrinalsood711.chatgpt.sit
 
 ## Daily entry states
 
+The phase appears above the daily entry with its full date range and today's calendar day/week. Settings opens a read-only phase card with start date, inclusive end date and duration. **Edit Phase** reveals the form; saving returns to the updated card and confirms success. Phase duration describes the timeline only, never sleep.
+
+Today in either navigation bar opens today's entry, or the first available date when the phase starts in the future. The logo uses the same navigation without reloading the page. Selecting the already-open section/day preserves its current form; leaving a changed form still asks before discarding unsaved edits. Saved entries remain in storage. The week strip follows the opened date, clamped to the phase's first/last week for dates outside its range.
+
 - **Not recorded**: no saved entry and no observations entered.
 - **Started · Unsaved**: selecting a workout or changing another value immediately updates the label beside the date. These changes are not durable until you save; the existing navigation warning protects against accidental loss.
 - **Started**: `Save entry` / `Save changes` stores the current details without declaring that the day is finished.

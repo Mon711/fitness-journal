@@ -4,8 +4,9 @@
   color: #293e35;
   background: #f8f8f3;
   font-synthesis: none;
+  line-height: 1.55;
   --green: #295541;
-  --muted: #748078;
+  --muted: #59685e;
   --line: #e6e9e1;
 }
 * {
@@ -46,8 +47,11 @@ select {
   outline-offset: 4px;
 }
 button:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--green);
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--green);
 }
 button {
   color: inherit;
@@ -117,9 +121,9 @@ fieldset {
   color: #9ba988;
 }
 .sidebar-label {
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 1.6px;
-  color: #879081;
+  color: #5b6957;
   margin: 49px 9px 19px;
 }
 .sidebar nav {
@@ -134,8 +138,8 @@ fieldset {
   min-height: 50px;
   padding: 12px 16px;
   border-radius: 9px;
-  font-size: 14px;
-  color: #6e7b70;
+  font-size: 16px;
+  color: #52634f;
 }
 .nav-item.active {
   background: #e1e7d9;
@@ -150,19 +154,19 @@ fieldset {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
-  color: #758172;
+  font-size: 14px;
+  color: #53634f;
 }
 .sidebar-footer p {
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.9;
-  color: #8a9284;
+  color: #596653;
   margin: 17px 0;
 }
 .sidebar-footer a {
-  font-size: 11px;
+  font-size: 14px;
   text-decoration: underline;
-  color: #748078;
+  color: #59685e;
 }
 .main-area {
   margin-left: 246px;
@@ -178,15 +182,15 @@ fieldset {
   justify-content: space-between;
 }
 .breadcrumb {
-  font-size: 10px;
+  font-size: 13px;
   letter-spacing: 2px;
-  color: #92998e;
+  color: #5f6c58;
 }
 .topbar .private {
   border: 1px solid #e4e8dd;
   border-radius: 20px;
   padding: 7px 11px;
-  font-size: 10px;
+  font-size: 13px;
 }
 main {
   max-width: 1170px;
@@ -200,10 +204,10 @@ main {
   margin-bottom: 36px;
 }
 .eyebrow {
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 1.9px;
-  color: #818d78;
+  color: #56674e;
 }
 .page-heading .eyebrow {
   text-transform: uppercase;
@@ -215,8 +219,8 @@ h1 {
   line-height: 1.2;
 }
 .subtitle {
-  font-size: 13px;
-  color: #7c857b;
+  font-size: 16px;
+  color: #56644f;
   margin-top: 13px;
   line-height: 1.7;
 }
@@ -231,13 +235,134 @@ h1 {
 .line-art span {
   font-family: Georgia, serif;
   font-style: italic;
-  font-size: 12px;
+  font-size: 15px;
 }
 .content-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 254px;
+  grid-template-columns: minmax(0, 1fr) 280px;
   gap: 25px;
   align-items: start;
+}
+.phase-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 28px;
+  padding: 25px 30px;
+  border: 1px solid #cbd7bf;
+  border-left: 4px solid #52734a;
+  border-radius: 14px;
+  background: #edf2e6;
+}
+.phase-banner-detail {
+  min-width: 0;
+}
+.phase-banner h2 {
+  font-size: 29px;
+  line-height: 1.25;
+  margin: 8px 0 10px;
+  overflow-wrap: anywhere;
+}
+.phase-dates {
+  font-size: 15px;
+  color: #4e6247;
+  line-height: 1.7;
+}
+.phase-banner-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  gap: 12px;
+}
+.phase-today {
+  display: grid;
+  gap: 3px;
+  text-align: right;
+}
+.phase-today span {
+  font-size: 13px;
+  color: #56694c;
+}
+.phase-today strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+.phase-summary {
+  margin-top: 25px;
+  padding: 24px;
+  border: 1px solid #d2ddc7;
+  border-radius: 12px;
+  background: #f3f6ed;
+}
+.phase-summary h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 25px;
+  font-weight: 400;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.phase-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 24px;
+  margin: 24px 0;
+}
+.phase-facts dt {
+  font-size: 14px;
+  color: #596b50;
+  margin-bottom: 5px;
+}
+.phase-facts dd {
+  margin: 0;
+  font-size: 16px;
+}
+.phase-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.date-picker:focus-within {
+  outline: 3px solid var(--green);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+.date-controls button,
+.week-heading button {
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+button:not(:disabled):active,
+a.secondary:active {
+  box-shadow: inset 0 0 0 2px #295541;
+}
+@media (hover: hover) {
+  .workout-options button:not(:disabled):not(.selected):hover,
+  .segments button:not(:disabled):not(.selected):hover {
+    background: #e3eadb;
+    border-color: #829576;
+  }
+  .workout-options button.selected:not(:disabled):hover,
+  .segments button.selected:not(:disabled):hover {
+    background: #1c432f;
+  }
+  .nav-item:not(.active):hover,
+  .mobile-nav button:not([aria-current]):hover,
+  .secondary:hover,
+  .date-controls button:not(:disabled):hover,
+  .date-picker:hover,
+  .week-heading button:not(:disabled):hover,
+  .week-days button:not(.chosen):hover,
+  .clear-option:hover {
+    background: #e9eee1;
+    color: #294b35;
+  }
+  .clear-option:hover,
+  .sidebar-footer a:hover {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
 }
 .card {
   background: #fffefa;
@@ -261,8 +386,8 @@ h1 {
   margin: 9px 0;
 }
 .context {
-  font-size: 11px;
-  color: #8a9184;
+  font-size: 14px;
+  color: #5e6b57;
 }
 .date-controls {
   display: flex;
@@ -270,7 +395,7 @@ h1 {
   gap: 1px;
 }
 .date-controls button {
-  width: 36px;
+  width: 44px;
   height: 44px;
   display: grid;
   place-items: center;
@@ -279,7 +404,7 @@ h1 {
   position: relative;
   display: grid;
   place-items: center;
-  width: 36px;
+  width: 44px;
   height: 44px;
 }
 .date-picker input {
@@ -305,7 +430,7 @@ h1 {
   display: flex;
   gap: 10px;
   align-items: center;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
 }
 .field-title svg {
@@ -321,20 +446,20 @@ h1 {
 }
 .field-title h3,
 .field-title label {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
 }
 .optional {
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 400;
-  color: #92988c;
+  color: #65705d;
   margin-left: auto;
   letter-spacing: 0.2px;
 }
 .helper {
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.7;
-  color: #8b9287;
+  color: #5c6955;
   margin: 9px 0 16px;
 }
 .workout-options {
@@ -347,22 +472,22 @@ h1 {
   background: #fcfcf8;
   min-height: 47px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 16px;
 }
 .workout-options button.selected,
 .segments button.selected {
-  background: #e8eee1;
-  border-color: #9baa8b;
-  color: #2b523b;
-  box-shadow: 0 0 0 1px #9baa8b33;
+  background: var(--green);
+  border-color: var(--green);
+  color: #fffefa;
+  font-weight: 600;
 }
 .clear-option {
   display: flex;
   gap: 5px;
   align-items: center;
-  font-size: 10px;
-  min-height: 36px;
-  color: #7a8473;
+  font-size: 13px;
+  min-height: 44px;
+  color: #52644b;
   padding: 8px 0;
 }
 .time-grid {
@@ -372,8 +497,8 @@ h1 {
 }
 .time-grid label {
   display: block;
-  font-size: 11px;
-  color: #657261;
+  font-size: 14px;
+  color: #52614c;
   margin-bottom: 9px;
 }
 .time-input {
@@ -391,7 +516,7 @@ h1 {
   background: none;
   border: 0;
   min-height: 46px;
-  font-size: 13px;
+  font-size: 16px;
   color: #41583d;
   min-width: 0;
 }
@@ -399,8 +524,8 @@ h1 {
   width: 100%;
   border: 0;
   background: transparent;
-  color: #8a9281;
-  font-size: 10px;
+  color: #5e6b54;
+  font-size: 13px;
   min-height: 37px;
   padding: 0;
   min-width: 0;
@@ -409,12 +534,12 @@ h1 {
   display: flex;
   align-items: center;
   min-height: 37px;
-  font-size: 10px;
-  color: #8a9281;
+  font-size: 13px;
+  color: #5e6b54;
 }
 .sleep-note {
-  font-size: 10px;
-  color: #8b9484;
+  font-size: 13px;
+  color: #5c6953;
   line-height: 1.6;
   margin-top: 9px;
   background: #f5f7ef;
@@ -438,19 +563,20 @@ h1 {
   padding: 3px;
 }
 .segments button {
-  min-height: 36px;
+  min-height: 44px;
   padding: 7px 11px;
   border-radius: 6px;
   border: 1px solid transparent;
-  font-size: 10px;
+  font-size: 13px;
   white-space: nowrap;
 }
 .quantity {
   display: block;
   margin: 10px 0 20px;
-  font-size: 11px;
+  font-size: 14px;
 }
 .quantity input {
+  font-size: 16px;
   margin-top: 8px;
   width: 100%;
   border: 1px solid var(--line);
@@ -469,13 +595,13 @@ h1 {
   border: 1px solid #e5e8df;
   border-radius: 8px;
   padding: 14px;
-  font-size: 12px;
-  line-height: 1.8;
+  font-size: 17px;
+  line-height: 1.7;
   color: #3c513a;
   margin-top: 16px;
 }
 .notes-field textarea::placeholder {
-  color: #9aa091;
+  color: #67725e;
 }
 .form-footer {
   border-top: 1px solid var(--line);
@@ -486,8 +612,8 @@ h1 {
   gap: 12px;
 }
 .form-footer > span {
-  font-size: 10px;
-  color: #959c8c;
+  font-size: 13px;
+  color: #5d6952;
 }
 .primary {
   display: inline-flex;
@@ -499,7 +625,7 @@ h1 {
   color: #fafbf2;
   min-height: 46px;
   padding: 12px 21px;
-  font-size: 12px;
+  font-size: 15px;
 }
 .primary:hover {
   background: #1c432f;
@@ -513,7 +639,7 @@ h1 {
   border-radius: 8px;
   background: #f5f7ef;
   color: #40563b;
-  font-size: 12px;
+  font-size: 15px;
   min-height: 44px;
   padding: 10px 14px;
 }
@@ -536,48 +662,8 @@ h1 {
   padding-top: 20px;
   border-top: 1px solid var(--line);
 }
-.phase-card {
-  border: 1px solid #e1e7d7;
-  border-radius: 13px;
-  background: #edf1e5;
-  padding: 24px;
-}
-.phase-icon {
-  width: 38px;
-  height: 38px;
-  border: 1px solid #dce4d0;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  color: #6e855b;
-  margin-bottom: 24px;
-}
-.phase-card h2 {
-  font-size: 25px;
-  line-height: 1.2;
-  margin: 12px 0;
-}
-.phase-card > p:not(.eyebrow) {
-  font-size: 11px;
-  line-height: 1.8;
-  color: #869179;
-}
-.phase-duration {
-  display: block;
-  font-size: 10px;
-  color: #76886a;
-  margin: 10px 0;
-}
-.phase-card button {
-  display: flex;
-  align-items: center;
-  gap: 25px;
-  margin-top: 19px;
-  padding: 10px 0;
-  font-size: 11px;
-}
 .week-card {
-  margin-top: 21px;
+  margin-top: 0;
   padding: 20px 17px;
   border: 1px solid #e3e7db;
   border-radius: 13px;
@@ -589,21 +675,21 @@ h1 {
   justify-content: space-between;
 }
 .week-heading h3 {
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 500;
 }
 .week-heading > div {
   display: flex;
 }
 .week-heading button {
-  width: 34px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
 }
 .week-card > p {
-  font-size: 10px;
-  color: #8d9584;
+  font-size: 13px;
+  color: #59684f;
   margin: 5px 0 18px;
 }
 .week-days {
@@ -611,8 +697,8 @@ h1 {
   justify-content: space-between;
 }
 .week-days button {
-  width: 28px;
-  min-height: 69px;
+  width: 32px;
+  min-height: 76px;
   border-radius: 16px;
   display: flex;
   flex-direction: column;
@@ -624,11 +710,11 @@ h1 {
   background: #e1e8d5;
 }
 .week-days span {
-  font-size: 9px;
-  color: #8c9482;
+  font-size: 12px;
+  color: #59684f;
 }
 .week-days b {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 500;
 }
 .dot {
@@ -647,20 +733,20 @@ h1 {
   align-items: center;
   gap: 7px;
   margin-top: 18px;
-  font-size: 9px;
-  color: #929b87;
+  font-size: 12px;
+  color: #58684c;
 }
 .page-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin: 37px 0 8px;
-  font-size: 9px;
-  color: #a0a594;
+  font-size: 12px;
+  color: #606b56;
   gap: 15px;
 }
 .page-footer span:first-child {
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 1.5px;
 }
 .mobile-nav {
@@ -674,7 +760,7 @@ h1 {
   padding: 14px 17px;
   border-radius: 9px;
   margin-bottom: 18px;
-  font-size: 12px;
+  font-size: 15px;
   background: #eaf0df;
 }
 .alert {
@@ -704,18 +790,19 @@ h1 {
 }
 .history-heading p,
 .settings-card > p:not(.eyebrow) {
-  font-size: 12px;
-  color: #859078;
+  font-size: 15px;
+  color: #59694e;
   line-height: 1.8;
   margin: 10px 0;
 }
 .month-label {
-  font-size: 10px;
-  color: #7e8b70;
+  font-size: 13px;
+  color: #56694a;
   display: grid;
   gap: 6px;
 }
 .month-label input {
+  font-size: 16px;
   padding: 9px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -726,8 +813,8 @@ h1 {
   margin-top: 22px;
 }
 .week-divider {
-  font-size: 10px;
-  color: #879478;
+  font-size: 13px;
+  color: #576b4b;
   letter-spacing: 1px;
   text-transform: uppercase;
   padding: 22px 0 9px;
@@ -757,8 +844,8 @@ h1 {
   gap: 5px;
 }
 .day-square small {
-  font-size: 9px;
-  color: #8d987e;
+  font-size: 12px;
+  color: #596d4d;
 }
 .day-square b {
   font-size: 17px;
@@ -770,14 +857,14 @@ h1 {
 }
 .history-detail strong {
   display: block;
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 500;
   color: #526448;
 }
 .history-detail > span {
   display: block;
-  font-size: 11px;
-  color: #939d88;
+  font-size: 14px;
+  color: #5b6b50;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -792,10 +879,11 @@ h1 {
 .settings-card label {
   display: grid;
   gap: 10px;
-  font-size: 12px;
+  font-size: 15px;
   color: #647558;
 }
 .settings-card input {
+  font-size: 16px;
   padding: 12px;
   min-height: 47px;
   border: 1px solid #dee5d5;
@@ -824,21 +912,21 @@ h1 {
 }
 .backup h3,
 .privacy-note h3 {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 500;
 }
 .backup p,
 .privacy-note p {
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.8;
-  color: #88957c;
+  color: #586d4c;
   margin-top: 7px;
 }
 .secondary {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: 14px;
   border: 1px solid #d7dfcc;
   border-radius: 8px;
   min-height: 44px;
@@ -866,10 +954,10 @@ h1 {
   margin-top: 20px;
 }
 .delete-confirm h3 {
-  font-size: 14px;
+  font-size: 16px;
 }
 .delete-confirm p {
-  font-size: 12px;
+  font-size: 15px;
   margin: 12px 0;
   line-height: 1.7;
 }
@@ -882,7 +970,7 @@ h1 {
   border: 1px solid #d8c5ba;
   padding: 10px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 15px;
 }
 .delete-confirm .danger {
   background: #8c4330;
@@ -913,14 +1001,11 @@ h1 {
     margin: 0 30px;
   }
   .content-grid {
-    grid-template-columns: minmax(0, 1fr) 224px;
+    grid-template-columns: minmax(0, 1fr) 260px;
     gap: 20px;
   }
   .entry-card {
     padding: 25px;
-  }
-  .phase-card {
-    padding: 20px;
   }
   h1 {
     font-size: 37px;
@@ -952,20 +1037,12 @@ h1 {
   }
   .context-column {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 20px;
   }
   .week-card {
     margin: 0;
-  }
-  .phase-icon {
-    display: none;
-  }
-  .phase-card button {
-    margin-top: 8px;
-  }
-  .phase-card h2 {
-    font-size: 23px;
+    max-width: 420px;
   }
   .entry-card {
     padding: 27px 30px;
@@ -974,7 +1051,7 @@ h1 {
     padding: 7px 14px;
   }
   .sidebar-label {
-    font-size: 8px;
+    font-size: 11px;
     letter-spacing: 1px;
   }
   .topbar {
@@ -982,6 +1059,37 @@ h1 {
   }
 }
 @media (max-width: 650px) {
+  .phase-banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 18px;
+    padding: 22px 20px;
+    margin-bottom: 22px;
+  }
+  .phase-banner h2 {
+    font-size: 27px;
+  }
+  .phase-banner-actions {
+    align-items: flex-start;
+    flex-direction: row;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    border-top: 1px solid #d2ddc7;
+    padding-top: 16px;
+  }
+  .phase-today {
+    text-align: left;
+  }
+  .phase-summary {
+    padding: 20px 17px;
+  }
+  .phase-facts {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .phase-form-actions > button {
+    width: 100%;
+  }
   .sidebar {
     display: none;
   }
@@ -993,11 +1101,11 @@ h1 {
     height: 62px;
   }
   .breadcrumb {
-    font-size: 8px;
+    font-size: 11px;
     letter-spacing: 1.3px;
   }
   .topbar .private {
-    font-size: 9px;
+    font-size: 12px;
     padding: 6px 8px;
   }
   main {
@@ -1011,10 +1119,10 @@ h1 {
     letter-spacing: -1px;
   }
   .page-heading .eyebrow {
-    font-size: 9px;
+    font-size: 12px;
   }
   .subtitle {
-    font-size: 12px;
+    font-size: 15px;
     max-width: 285px;
     margin-top: 10px;
   }
@@ -1029,14 +1137,14 @@ h1 {
     font-size: 26px;
   }
   .entry-header .eyebrow {
-    font-size: 8px;
+    font-size: 11px;
   }
   .date-controls {
     gap: 0;
   }
   .date-controls button,
   .date-picker {
-    width: 32px;
+    width: 44px;
   }
   .section-field {
     padding: 23px 0;
@@ -1048,61 +1156,63 @@ h1 {
     min-height: 48px;
   }
   .time-grid {
-    gap: 12px;
+    gap: 18px;
+    grid-template-columns: 1fr;
   }
   .time-input {
     padding: 0 8px;
     gap: 5px;
   }
   .time-input input {
-    font-size: 13px;
+    font-size: 16px;
   }
   .time-grid select {
-    font-size: 9px;
+    font-size: 16px;
   }
   .sleep-note {
-    font-size: 9px;
+    font-size: 14px;
   }
   .segments button {
-    padding: 7px 9px;
-    font-size: 10px;
-    min-height: 39px;
+    padding: 9px 12px;
+    font-size: 14px;
+    min-height: 44px;
+    flex: 1;
+  }
+  .segments {
+    width: 100%;
   }
   .observation {
-    gap: 8px;
+    gap: 12px;
+    flex-direction: column;
+    align-items: stretch;
   }
   .observation .field-title {
-    font-size: 12px;
+    font-size: 15px;
     gap: 8px;
   }
   .field-title label {
-    font-size: 12px;
+    font-size: 15px;
   }
   .form-footer .primary {
     padding: 12px 17px;
   }
   .form-footer > span {
-    font-size: 9px;
+    font-size: 12px;
   }
   .context-column {
     grid-template-columns: 1fr;
     gap: 17px;
   }
-  .phase-card {
-    padding: 23px;
-  }
-  .phase-card h2 {
-    font-size: 26px;
-  }
   .week-card {
     padding: 20px;
+    max-width: none;
   }
   .week-days button {
     width: 35px;
   }
   .page-footer {
     margin: 27px 4px 0;
-    font-size: 8px;
+    font-size: 11px;
   }
   .page-footer span:first-child {
     font-size: 7px;
@@ -1126,8 +1236,8 @@ h1 {
     flex-direction: column;
     align-items: center;
     gap: 5px;
-    font-size: 9px;
-    color: #849475;
+    font-size: 12px;
+    color: #5c704e;
     min-width: 70px;
     min-height: 49px;
     justify-content: center;
@@ -1166,10 +1276,10 @@ h1 {
   }
   .notice,
   .alert {
-    font-size: 11px;
+    font-size: 14px;
   }
   .field-title .optional {
-    font-size: 9px;
+    font-size: 12px;
   }
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -1208,14 +1318,14 @@ h1 {
   border: 1px solid #dce3d3;
   border-radius: 20px;
   padding: 5px 9px;
-  font-size: 10px;
+  font-size: 13px;
   white-space: nowrap;
   font-weight: 400;
   line-height: 1.5;
   flex-shrink: 0;
 }
 .entry-status.unrecorded {
-  color: #7c8577;
+  color: #5c6654;
   background: #f7f8f2;
   border-color: #e5e8df;
 }
@@ -1253,8 +1363,8 @@ h1 {
   line-height: 1.5;
 }
 .saved-heading p {
-  font-size: 11px;
-  color: #7c8972;
+  font-size: 14px;
+  color: #59694f;
   line-height: 1.8;
   margin-top: 7px;
 }
@@ -1267,11 +1377,11 @@ h1 {
   gap: 15px;
   border-bottom: 1px solid var(--line);
   padding: 14px 0;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.7;
 }
 .entry-summary dt {
-  color: #87917d;
+  color: #5c6b52;
 }
 .entry-summary dd {
   margin: 0;
@@ -1296,8 +1406,8 @@ h1 {
   padding-top: 20px;
 }
 .finish-day p {
-  font-size: 11px;
-  color: #828c78;
+  font-size: 14px;
+  color: #5a684f;
   line-height: 1.8;
   margin-bottom: 12px;
 }
@@ -1332,20 +1442,22 @@ h1 {
     gap: 4px;
   }
   .date-status .entry-status {
-    font-size: 9px;
+    font-size: 12px;
     padding: 3px 7px;
   }
   .entry-header {
     align-items: flex-start;
+    flex-wrap: wrap;
   }
   .date-controls {
-    padding-top: 15px;
+    padding-top: 0;
+    margin-left: auto;
   }
   .saved-heading {
     padding: 15px;
   }
   .saved-heading h3 {
-    font-size: 14px;
+    font-size: 16px;
   }
   .entry-summary > div {
     grid-template-columns: 90px minmax(0, 1fr);
@@ -1362,7 +1474,7 @@ h1 {
     gap: 10px;
   }
   .history-row > .entry-status {
-    font-size: 9px;
+    font-size: 12px;
     padding: 4px 6px;
   }
   .week-caption {
@@ -1377,9 +1489,9 @@ h1 {
   color: #68765c;
 }
 .daily-quote > .eyebrow {
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 1.5px;
-  color: #8a957d;
+  color: #5b6b50;
 }
 .daily-quote blockquote {
   margin: 15px 0 10px;
@@ -1392,16 +1504,16 @@ h1 {
   overflow-wrap: anywhere;
 }
 .daily-quote blockquote footer {
-  font-size: 10px;
-  color: #818e75;
+  font-size: 13px;
+  color: #596d4e;
   margin-top: 11px;
   line-height: 1.6;
 }
 .daily-quote > a {
   display: inline-flex;
   align-items: center;
-  font-size: 9px;
-  color: #78866b;
+  font-size: 12px;
+  color: #536949;
   text-decoration: underline;
   text-underline-offset: 3px;
   min-height: 44px;

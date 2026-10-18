@@ -40,6 +40,12 @@ function pretty(
 ) {
   return new Date(d + "T12:00:00").toLocaleDateString("en", options);
 }
+function phaseWeek(date: string, phase: Phase) {
+  const elapsed =
+    Date.parse(date + "T00:00:00Z") -
+    Date.parse(phase.startDate + "T00:00:00Z");
+  return Math.max(0, Math.min(phase.weeks - 1, Math.floor(elapsed / 604800000)));
+}
 async function api<T = unknown>(path: string, options: RequestInit = {}) {
   const r = await fetch(path, {
     ...options,
@@ -65,6 +71,7 @@ export default function Journal() {
     [dirty, setDirty] = useState(false),
     [saved, setSaved] = useState(false),
     [editing, setEditing] = useState(true),
+    [editingPhase, setEditingPhase] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [confirmDelete, setConfirmDelete] = useState(false),
@@ -93,6 +100,7 @@ export default function Journal() {
           setEntry(e || blankEntry(initialDate));
           setSaved(!!e);
           setEditing(!e);
+          setWeek(phaseWeek(initialDate, p));
         }
       })
       .catch((e) => setError(e.message))
@@ -108,7 +116,10 @@ export default function Journal() {
     );
   }
   function selectDay(d: string) {
-    if (d < startDate || busy || !leave()) return;
+    if (
+      loading || busy || d < startDate ||
+      (tab === "entry" && d === date) || !leave()
+    ) return;
     const e = entries.find((x) => x.date === d);
     setDate(d);
     setEntry(e || blankEntry(d));
@@ -119,10 +130,17 @@ export default function Journal() {
     setNotice("");
     setConfirmDelete(false);
     setTab("entry");
+    setEditingPhase(false);
+    setWeek(phaseWeek(d, phase ?? DEFAULT_PHASE));
     window.scrollTo(0, 0);
   }
+  function goToday() {
+    // A future phase still needs a reachable home: open its first available day.
+    const target = today();
+    selectDay(target < startDate ? startDate : target);
+  }
   function changeTab(t: string) {
-    if (busy || !leave()) return;
+    if (loading || busy || t === tab || !leave()) return;
     setDirty(false);
     const e = entries.find((x) => x.date === date);
     setEntry(e || blankEntry(date));
@@ -132,7 +150,9 @@ export default function Journal() {
     window.scrollTo(0, 0);
     setNotice("");
     setError("");
-    if (t === "settings" && phase) setDraft(phase);
+    setConfirmDelete(false);
+    setEditingPhase(false);
+    setDraft(phase ?? DEFAULT_PHASE);
   }
   useEffect(() => {
     if (!dirty) return;
@@ -202,6 +222,8 @@ export default function Journal() {
         body: JSON.stringify(draft),
       });
       setPhase(result.phase);
+      setDraft(result.phase);
+      setEditingPhase(false);
       if (date < result.phase.startDate) {
         const d = result.phase.startDate;
         const existing = entries.find((e) => e.date === d);
@@ -213,8 +235,9 @@ export default function Journal() {
       if (range < result.phase.startDate.slice(0, 7))
         setRange(result.phase.startDate.slice(0, 7));
       setDirty(false);
-      setWeek(0);
-      setNotice("Phase settings saved");
+      setWeek(phaseWeek(date, result.phase));
+      setNotice("Phase saved successfully.");
+      window.scrollTo(0, 0);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -291,7 +314,15 @@ export default function Journal() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <a className="brand" href="/" aria-label="Fitness Journal home">
+        <a
+          className="brand"
+          href="/"
+          aria-label="Fitness Journal home"
+          onClick={(e) => {
+            e.preventDefault();
+            goToday();
+          }}
+        >
           <span className="brand-mark">
             <Leaf size={22} />
           </span>
@@ -315,7 +346,7 @@ export default function Journal() {
                 aria-current={tab === id ? "page" : undefined}
                 className={tab === id ? "nav-item active" : "nav-item"}
                 onClick={() => {
-                  if (id === "entry") selectDay(today());
+                  if (id === "entry") goToday();
                   else changeTab(id as string);
                 }}
               >
@@ -395,389 +426,397 @@ export default function Journal() {
           ) : (
             <>
               {tab === "entry" && (
-                <div className="content-grid">
-                  <section className="card entry-card" aria-busy={busy}>
-                    <div className="entry-header">
-                      <div>
-                        <p className="eyebrow">DAILY ENTRY</p>
-                        <div className="date-status">
-                          <h2>{pretty(date)}</h2>
-                          <span
-                            className={`entry-status ${state}`}
-                            aria-live="polite"
-                          >
-                            {state === "filled" && <Check size={12} />}{" "}
-                            {stateLabel}
-                            {dirty ? " · Unsaved" : ""}
-                          </span>
-                        </div>
-                        <span className="context">{current}</span>
-                      </div>
-                      <div className="date-controls">
-                        <button
-                          aria-label="Previous day"
-                          disabled={date <= startDate || busy}
-                          onClick={() => selectDay(addDays(date, -1))}
-                        >
-                          <ArrowLeft size={18} />
-                        </button>
-                        <label className="date-picker">
-                          <CalendarDays size={18} />
-                          <input
-                            aria-label="Entry date"
-                            type="date"
-                            min={startDate}
-                            max="2200-12-31"
-                            value={date}
-                            onChange={(e) => {
-                              if (e.target.value) selectDay(e.target.value);
-                            }}
-                          />
-                        </label>
-                        <button
-                          aria-label="Next day"
-                          onClick={() => selectDay(addDays(date, 1))}
-                        >
-                          <ArrowRight size={18} />
-                        </button>
-                      </div>
+                <>
+                  <section className="phase-banner" aria-labelledby="home-phase-title">
+                    <div className="phase-banner-detail">
+                      <p className="eyebrow">{phase ? "YOUR PHASE" : "YOUR TIMELINE"}</p>
+                      <h2 id="home-phase-title">{phase?.title ?? "A fresh page."}</h2>
+                      <p className="phase-dates">
+                        {phase
+                          ? `${pretty(phase.startDate, { day: "numeric", month: "short", year: "numeric" })} – ${pretty(addDays(phase.startDate, phase.weeks * 7 - 1), { day: "numeric", month: "short", year: "numeric" })} · ${phase.weeks} weeks`
+                          : "Choose a phase to give your observations a little context."}
+                      </p>
                     </div>
-                    {!editing && saved ? (
-                      <EntrySummary
-                        entry={entry}
-                        busy={busy}
-                        onEdit={() => {
-                          setEditing(true);
-                          setConfirmDelete(false);
-                        }}
-                        onFilled={() => save(true)}
-                        onReopen={() => save(false)}
-                        onDelete={() => setConfirmDelete(true)}
-                      />
-                    ) : (
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          save();
-                        }}
+                    <div className="phase-banner-actions">
+                      {phase && (
+                        <p className="phase-today">
+                          <span>Today</span>
+                          <strong>{context(today(), phase)}</strong>
+                        </p>
+                      )}
+                      <button
+                        className="secondary"
+                        onClick={() => changeTab("settings")}
                       >
-                        <fieldset disabled={busy}>
-                          <div className="section-field">
-                            <div className="field-title">
-                              <span className="tiny-line">↗</span>
-                              <legend>Movement</legend>
-                              <span className="optional">optional</span>
-                            </div>
-                            <p className="helper">Which workout did you do?</p>
-                            <div
-                              className="workout-options"
-                              role="group"
-                              aria-label="Workout"
+                        {phase ? "View phase" : "Set up your phase"}
+                        <ArrowRight size={16} />
+                      </button>
+                    </div>
+                  </section>
+                  <div className="content-grid">
+                    <section className="card entry-card" aria-busy={busy}>
+                      <div className="entry-header">
+                        <div>
+                          <p className="eyebrow">DAILY ENTRY</p>
+                          <div className="date-status">
+                            <h2>{pretty(date)}</h2>
+                            <span
+                              className={`entry-status ${state}`}
+                              aria-live="polite"
                             >
-                              {["A", "B", "C", "D", "E", "Rest"].map((w) => (
-                                <button
-                                  key={w}
-                                  type="button"
-                                  aria-pressed={entry.workout === w}
-                                  className={
-                                    entry.workout === w ? "selected" : ""
-                                  }
-                                  onClick={() => update("workout", w)}
-                                >
-                                  {w}
-                                </button>
-                              ))}
-                            </div>
-                            <button
-                              className="clear-option"
-                              type="button"
-                              aria-pressed={entry.workout === null}
-                              onClick={() => update("workout", null)}
-                            >
-                              {entry.workout === null ? (
-                                <Check size={13} />
-                              ) : null}{" "}
-                              Not recorded
-                            </button>
-                          </div>
-                          <div className="section-field">
-                            <div className="field-title">
-                              <Moon size={19} />
-                              <h3>Night & morning</h3>
-                              <span className="optional">optional</span>
-                            </div>
-                            <p className="helper">
-                              Approximate times are perfectly fine.
-                            </p>
-                            <div className="time-grid">
-                              <div>
-                                <label htmlFor="bedtime">Went to bed</label>
-                                <div className="time-input">
-                                  <Moon size={16} />
-                                  <input
-                                    id="bedtime"
-                                    type="time"
-                                    value={entry.bedtime || ""}
-                                    onChange={(e) =>
-                                      update("bedtime", e.target.value || null)
-                                    }
-                                  />
-                                </div>
-                                <select
-                                  aria-label="Bedtime day"
-                                  value={entry.bedtimeDay}
-                                  onChange={(e) =>
-                                    update("bedtimeDay", e.target.value)
-                                  }
-                                >
-                                  <option value="previous">
-                                    Previous evening ·{" "}
-                                    {pretty(addDays(date, -1), {
-                                      month: "short",
-                                      day: "numeric",
-                                    })}
-                                  </option>
-                                  <option value="same">
-                                    Entry date ·{" "}
-                                    {pretty(date, {
-                                      month: "short",
-                                      day: "numeric",
-                                    })}
-                                  </option>
-                                </select>
-                              </div>
-                              <div>
-                                <label htmlFor="wake">Woke up</label>
-                                <div className="time-input">
-                                  <Sun size={17} />
-                                  <input
-                                    id="wake"
-                                    type="time"
-                                    value={entry.wakeTime || ""}
-                                    onChange={(e) =>
-                                      update("wakeTime", e.target.value || null)
-                                    }
-                                  />
-                                </div>
-                                <span className="time-caption">
-                                  On {pretty(date)}
-                                </span>
-                              </div>
-                            </div>
-                            <p className="sleep-note">
-                              Clock times only — these don’t tell us how long
-                              you slept.
-                            </p>
-                          </div>
-                          <div className="section-field">
-                            {choices("Alcohol", "alcohol", Wine)}
-                            {entry.alcohol === "yes" && (
-                              <label className="quantity">
-                                Quantity{" "}
-                                <span className="optional">optional</span>
-                                <input
-                                  placeholder="e.g. 1 glass of wine"
-                                  maxLength={100}
-                                  value={entry.alcoholQuantity || ""}
-                                  onChange={(e) =>
-                                    update(
-                                      "alcoholQuantity",
-                                      e.target.value || null,
-                                    )
-                                  }
-                                />
-                              </label>
-                            )}
-                            {choices("Junk food", "junkFood", Utensils)}
-                          </div>
-                          <div className="section-field notes-field">
-                            <label className="field-title" htmlFor="notes">
-                              <PencilLine size={18} />
-                              <span>Anything else?</span>
-                              <span className="optional">optional</span>
-                            </label>
-                            <textarea
-                              id="notes"
-                              maxLength={10000}
-                              placeholder="How you felt, something you noticed, or just a thought…"
-                              value={entry.notes}
-                              onChange={(e) => update("notes", e.target.value)}
-                            />
-                          </div>
-                          <div className="form-footer">
-                            <span>
-                              {dirty
-                                ? "Unsaved changes"
-                                : saved
-                                  ? "Recorded in your journal"
-                                  : "Nothing recorded yet"}
+                              {state === "filled" && <Check size={12} />}{" "}
+                              {stateLabel}
+                              {dirty ? " · Unsaved" : ""}
                             </span>
-                            <button className="secondary" type="submit">
-                              {busy
-                                ? "Saving…"
-                                : saved
-                                  ? "Save changes"
-                                  : "Save entry"}
-                              <Check size={17} />
-                            </button>
                           </div>
-                          {!entry.filled && (
-                            <div className="finish-day">
-                              <p>
-                                Finished recording for this day? Optional
-                                details can stay unrecorded.
+                          <span className="context">{current}</span>
+                        </div>
+                        <div className="date-controls">
+                          <button
+                            aria-label="Previous day"
+                            disabled={date <= startDate || busy}
+                            onClick={() => selectDay(addDays(date, -1))}
+                          >
+                            <ArrowLeft size={18} />
+                          </button>
+                          <label className="date-picker">
+                            <CalendarDays size={18} />
+                            <input
+                              aria-label="Entry date"
+                              type="date"
+                              min={startDate}
+                              max="2200-12-31"
+                              value={date}
+                              onChange={(e) => {
+                                if (e.target.value) selectDay(e.target.value);
+                              }}
+                            />
+                          </label>
+                          <button
+                            aria-label="Next day"
+                            onClick={() => selectDay(addDays(date, 1))}
+                          >
+                            <ArrowRight size={18} />
+                          </button>
+                        </div>
+                      </div>
+                      {!editing && saved ? (
+                        <EntrySummary
+                          entry={entry}
+                          busy={busy}
+                          onEdit={() => {
+                            setEditing(true);
+                            setConfirmDelete(false);
+                          }}
+                          onFilled={() => save(true)}
+                          onReopen={() => save(false)}
+                          onDelete={() => setConfirmDelete(true)}
+                        />
+                      ) : (
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            save();
+                          }}
+                        >
+                          <fieldset disabled={busy}>
+                            <div className="section-field">
+                              <div className="field-title">
+                                <span className="tiny-line">↗</span>
+                                <legend>Movement</legend>
+                                <span className="optional">optional</span>
+                              </div>
+                              <p className="helper">Which workout did you do?</p>
+                              <div
+                                className="workout-options"
+                                role="group"
+                                aria-label="Workout"
+                              >
+                                {["A", "B", "C", "D", "E", "Rest"].map((w) => (
+                                  <button
+                                    key={w}
+                                    type="button"
+                                    aria-pressed={entry.workout === w}
+                                    className={
+                                      entry.workout === w ? "selected" : ""
+                                    }
+                                    onClick={() => update("workout", w)}
+                                  >
+                                    {w}
+                                  </button>
+                                ))}
+                              </div>
+                              <button
+                                className="clear-option"
+                                type="button"
+                                aria-pressed={entry.workout === null}
+                                onClick={() => update("workout", null)}
+                              >
+                                {entry.workout === null ? (
+                                  <Check size={13} />
+                                ) : null}{" "}
+                                Not recorded
+                              </button>
+                            </div>
+                            <div className="section-field">
+                              <div className="field-title">
+                                <Moon size={19} />
+                                <h3>Night & morning</h3>
+                                <span className="optional">optional</span>
+                              </div>
+                              <p className="helper">
+                                Approximate times are perfectly fine.
                               </p>
+                              <div className="time-grid">
+                                <div>
+                                  <label htmlFor="bedtime">Went to bed</label>
+                                  <div className="time-input">
+                                    <Moon size={16} />
+                                    <input
+                                      id="bedtime"
+                                      type="time"
+                                      value={entry.bedtime || ""}
+                                      onChange={(e) =>
+                                        update("bedtime", e.target.value || null)
+                                      }
+                                    />
+                                  </div>
+                                  <select
+                                    aria-label="Bedtime day"
+                                    value={entry.bedtimeDay}
+                                    onChange={(e) =>
+                                      update("bedtimeDay", e.target.value)
+                                    }
+                                  >
+                                    <option value="previous">
+                                      Previous evening ·{" "}
+                                      {pretty(addDays(date, -1), {
+                                        month: "short",
+                                        day: "numeric",
+                                      })}
+                                    </option>
+                                    <option value="same">
+                                      Entry date ·{" "}
+                                      {pretty(date, {
+                                        month: "short",
+                                        day: "numeric",
+                                      })}
+                                    </option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label htmlFor="wake">Woke up</label>
+                                  <div className="time-input">
+                                    <Sun size={17} />
+                                    <input
+                                      id="wake"
+                                      type="time"
+                                      value={entry.wakeTime || ""}
+                                      onChange={(e) =>
+                                        update("wakeTime", e.target.value || null)
+                                      }
+                                    />
+                                  </div>
+                                  <span className="time-caption">
+                                    On {pretty(date)}
+                                  </span>
+                                </div>
+                              </div>
+                              <p className="sleep-note">
+                                Clock times only — these don’t tell us how long
+                                you slept.
+                              </p>
+                            </div>
+                            <div className="section-field">
+                              {choices("Alcohol", "alcohol", Wine)}
+                              {entry.alcohol === "yes" && (
+                                <label className="quantity">
+                                  Quantity{" "}
+                                  <span className="optional">optional</span>
+                                  <input
+                                    placeholder="e.g. 1 glass of wine"
+                                    maxLength={100}
+                                    value={entry.alcoholQuantity || ""}
+                                    onChange={(e) =>
+                                      update(
+                                        "alcoholQuantity",
+                                        e.target.value || null,
+                                      )
+                                    }
+                                  />
+                                </label>
+                              )}
+                              {choices("Junk food", "junkFood", Utensils)}
+                            </div>
+                            <div className="section-field notes-field">
+                              <label className="field-title" htmlFor="notes">
+                                <PencilLine size={18} />
+                                <span>Anything else?</span>
+                                <span className="optional">optional</span>
+                              </label>
+                              <textarea
+                                id="notes"
+                                maxLength={10000}
+                                placeholder="How you felt, something you noticed, or just a thought…"
+                                value={entry.notes}
+                                onChange={(e) => update("notes", e.target.value)}
+                              />
+                            </div>
+                            <div className="form-footer">
+                              <span>
+                                {dirty
+                                  ? "Unsaved changes"
+                                  : saved
+                                    ? "Recorded in your journal"
+                                    : "Nothing recorded yet"}
+                              </span>
+                              <button className="secondary" type="submit">
+                                {busy
+                                  ? "Saving…"
+                                  : saved
+                                    ? "Save changes"
+                                    : "Save entry"}
+                                <Check size={17} />
+                              </button>
+                            </div>
+                            {!entry.filled && (
+                              <div className="finish-day">
+                                <p>
+                                  Finished recording for this day? Optional
+                                  details can stay unrecorded.
+                                </p>
+                                <button
+                                  type="button"
+                                  className="primary"
+                                  onClick={() => save(true)}
+                                >
+                                  Mark day as filled <Check size={17} />
+                                </button>
+                              </div>
+                            )}
+                            {saved && (
                               <button
                                 type="button"
-                                className="primary"
-                                onClick={() => save(true)}
+                                className="clear-option cancel-edit"
+                                onClick={cancelEdit}
                               >
-                                Mark day as filled <Check size={17} />
+                                Cancel editing
                               </button>
-                            </div>
-                          )}
-                          {saved && (
-                            <button
-                              type="button"
-                              className="clear-option cancel-edit"
-                              onClick={cancelEdit}
-                            >
-                              Cancel editing
-                            </button>
-                          )}
-                          {saved && (
-                            <button
-                              className="entry-action delete-entry"
-                              type="button"
-                              onClick={() => setConfirmDelete(true)}
-                            >
-                              <Trash2 size={16} aria-hidden="true" />
-                              Delete this entry
-                            </button>
-                          )}
-                        </fieldset>
-                      </form>
-                    )}
-                    {confirmDelete && (
-                      <div
-                        className="delete-confirm"
-                        role="alertdialog"
-                        aria-labelledby="delete-title"
-                      >
-                        <h3 id="delete-title">Delete this entry?</h3>
-                        <p>
-                          This removes the record for {pretty(date)}. You can
-                          export a backup first.
-                        </p>
-                        <div>
-                          <button
-                            onClick={() => setConfirmDelete(false)}
-                            disabled={busy}
-                          >
-                            Keep entry
-                          </button>
-                          <button
-                            className="danger"
-                            onClick={remove}
-                            disabled={busy}
-                          >
-                            {busy ? "Deleting…" : "Delete entry"}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </section>
-                  <aside className="context-column">
-                    <section className="phase-card">
-                      <div className="phase-icon">
-                        <Leaf size={21} />
-                      </div>
-                      <p className="eyebrow">YOUR CURRENT CHAPTER</p>
-                      <h2>{phase ? phase.title : "A fresh page."}</h2>
-                      <p>
-                        {phase
-                          ? `${pretty(phase.startDate)} – ${pretty(addDays(phase.startDate, phase.weeks * 7 - 1))}`
-                          : "Choose when your phase begins. You can always change it."}
-                      </p>
-                      {phase ? (
-                        <span className="phase-duration">
-                          {phase.weeks} weeks of observations
-                        </span>
-                      ) : null}
-                      <button onClick={() => changeTab("settings")}>
-                        {phase ? "Edit phase" : "Set up your phase"}
-                        <ArrowRight size={15} />
-                      </button>
-                    </section>
-                    {phase && (
-                      <section className="week-card">
-                        <div className="week-heading">
-                          <h3>Week {week + 1}</h3>
+                            )}
+                            {saved && (
+                              <button
+                                className="entry-action delete-entry"
+                                type="button"
+                                onClick={() => setConfirmDelete(true)}
+                              >
+                                <Trash2 size={16} aria-hidden="true" />
+                                Delete this entry
+                              </button>
+                            )}
+                          </fieldset>
+                        </form>
+                      )}
+                      {confirmDelete && (
+                        <div
+                          className="delete-confirm"
+                          role="alertdialog"
+                          aria-labelledby="delete-title"
+                        >
+                          <h3 id="delete-title">Delete this entry?</h3>
+                          <p>
+                            This removes the record for {pretty(date)}. You can
+                            export a backup first.
+                          </p>
                           <div>
                             <button
-                              aria-label="Previous week"
-                              disabled={week === 0}
-                              onClick={() => setWeek((w) => w - 1)}
+                              onClick={() => setConfirmDelete(false)}
+                              disabled={busy}
                             >
-                              <ArrowLeft size={15} />
+                              Keep entry
                             </button>
                             <button
-                              aria-label="Next week"
-                              disabled={week === phase.weeks - 1}
-                              onClick={() => setWeek((w) => w + 1)}
+                              className="danger"
+                              onClick={remove}
+                              disabled={busy}
                             >
-                              <ArrowRight size={15} />
+                              {busy ? "Deleting…" : "Delete entry"}
                             </button>
                           </div>
                         </div>
-                        <p>
-                          {pretty(weekStart, {
-                            month: "short",
-                            day: "numeric",
-                          })}{" "}
-                          –{" "}
-                          {pretty(addDays(weekStart, 6), {
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </p>
-                        <div className="week-days">
-                          {Array.from({ length: 7 }, (_, i) => {
-                            const d = addDays(weekStart, i),
-                              status = dayState(d);
-                            return (
+                      )}
+                    </section>
+                    <aside className="context-column">
+                      {phase && (
+                        <section className="week-card">
+                          <div className="week-heading">
+                            <h3>Week {week + 1}</h3>
+                            <div>
                               <button
-                                key={d}
-                                className={d === date ? "chosen" : ""}
-                                aria-label={`${pretty(d)}, ${status}`}
-                                onClick={() => selectDay(d)}
+                                aria-label="Previous week"
+                                disabled={week === 0}
+                                onClick={() => setWeek((w) => w - 1)}
                               >
-                                <span>{pretty(d, { weekday: "narrow" })}</span>
-                                <b>{Number(d.slice(-2))}</b>
-                                {status === "filled" ? (
-                                  <Check size={12} className="day-filled" />
-                                ) : (
-                                  <i
-                                    className={
-                                      status === "started"
-                                        ? "dot started"
-                                        : "dot"
-                                    }
-                                  />
-                                )}
+                                <ArrowLeft size={15} />
                               </button>
-                            );
-                          })}
-                        </div>
-                        <span className="week-caption">
-                          <i className="dot started" /> Started{" "}
-                          <Check size={12} /> Filled
-                        </span>
-                      </section>
-                    )}
-                    <DailyQuote />
-                  </aside>
-                </div>
+                              <button
+                                aria-label="Next week"
+                                disabled={week === phase.weeks - 1}
+                                onClick={() => setWeek((w) => w + 1)}
+                              >
+                                <ArrowRight size={15} />
+                              </button>
+                            </div>
+                          </div>
+                          <p>
+                            {pretty(weekStart, {
+                              month: "short",
+                              day: "numeric",
+                            })}{" "}
+                            –{" "}
+                            {pretty(addDays(weekStart, 6), {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </p>
+                          <div className="week-days">
+                            {Array.from({ length: 7 }, (_, i) => {
+                              const d = addDays(weekStart, i),
+                                status = dayState(d);
+                              return (
+                                <button
+                                  key={d}
+                                  className={d === date ? "chosen" : ""}
+                                  aria-pressed={d === date}
+                                  aria-label={`${pretty(d)}, ${status}`}
+                                  onClick={() => selectDay(d)}
+                                >
+                                  <span>{pretty(d, { weekday: "narrow" })}</span>
+                                  <b>{Number(d.slice(-2))}</b>
+                                  {status === "filled" ? (
+                                    <Check size={12} className="day-filled" />
+                                  ) : (
+                                    <i
+                                      className={
+                                        status === "started"
+                                          ? "dot started"
+                                          : "dot"
+                                      }
+                                    />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <span className="week-caption">
+                            <i className="dot started" /> Started{" "}
+                            <Check size={12} /> Filled
+                          </span>
+                        </section>
+                      )}
+                      <DailyQuote />
+                    </aside>
+                  </div>
+                </>
               )}
               {tab === "history" && (
                 <section className="card history-card">
@@ -871,67 +910,117 @@ export default function Journal() {
                     Your journal begins on 17 October 2026. Dates give your
                     observations context.
                   </p>
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      saveSettings();
-                    }}
-                  >
-                    <fieldset disabled={busy}>
-                      <label>
-                        Phase name
-                        <input
-                          required
-                          maxLength={80}
-                          value={draft.title}
-                          onChange={(e) => {
-                            setDraft({ ...draft, title: e.target.value });
-                            setDirty(true);
-                          }}
-                        />
-                      </label>
-                      <div className="settings-grid">
-                        <label>
-                          Starting date
-                          <input
-                            type="date"
-                            required
-                            min={JOURNAL_START}
-                            max="2200-12-31"
-                            value={draft.startDate}
-                            onChange={(e) => {
-                              setDraft({ ...draft, startDate: e.target.value });
-                              setDirty(true);
-                            }}
-                          />
-                        </label>
-                        <label>
-                          Duration in weeks
-                          <input
-                            type="number"
-                            required
-                            min={1}
-                            max={104}
-                            value={draft.weeks}
-                            onChange={(e) => {
-                              setDraft({
-                                ...draft,
-                                weeks: Number(e.target.value),
-                              });
-                              setDirty(true);
-                            }}
-                          />
-                        </label>
-                      </div>
-                      <p className="helper">
-                        Changing your phase keeps every existing journal entry.
-                      </p>
-                      <button className="primary" type="submit">
-                        {busy ? "Saving…" : "Save phase settings"}
-                        <Check size={17} />
+                  {phase && !editingPhase ? (
+                    <section
+                      className="phase-summary"
+                      aria-labelledby="settings-phase-title"
+                    >
+                      <h3 id="settings-phase-title">{phase.title}</h3>
+                      <dl className="phase-facts">
+                        <div>
+                          <dt>Start date</dt>
+                          <dd>{pretty(phase.startDate, { day: "numeric", month: "long", year: "numeric" })}</dd>
+                        </div>
+                        <div>
+                          <dt>End date</dt>
+                          <dd>{pretty(addDays(phase.startDate, phase.weeks * 7 - 1), { day: "numeric", month: "long", year: "numeric" })}</dd>
+                        </div>
+                        <div>
+                          <dt>Duration</dt>
+                          <dd>{phase.weeks} weeks · {phase.weeks * 7} days</dd>
+                        </div>
+                      </dl>
+                      <button
+                        className="secondary"
+                        onClick={() => {
+                          setDraft(phase);
+                          setEditingPhase(true);
+                          setNotice("");
+                        }}
+                      >
+                        <PencilLine size={16} /> Edit Phase
                       </button>
-                    </fieldset>
-                  </form>
+                    </section>
+                  ) : (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        saveSettings();
+                      }}
+                    >
+                      <fieldset disabled={busy}>
+                        <label>
+                          Phase name
+                          <input
+                            required
+                            maxLength={80}
+                            value={draft.title}
+                            onChange={(e) => {
+                              setDraft({ ...draft, title: e.target.value });
+                              setDirty(true);
+                            }}
+                          />
+                        </label>
+                        <div className="settings-grid">
+                          <label>
+                            Starting date
+                            <input
+                              type="date"
+                              required
+                              min={JOURNAL_START}
+                              max="2200-12-31"
+                              value={draft.startDate}
+                              onChange={(e) => {
+                                setDraft({ ...draft, startDate: e.target.value });
+                                setDirty(true);
+                              }}
+                            />
+                          </label>
+                          <label>
+                            Duration in weeks
+                            <input
+                              type="number"
+                              required
+                              min={1}
+                              max={104}
+                              value={draft.weeks}
+                              onChange={(e) => {
+                                setDraft({
+                                  ...draft,
+                                  weeks: Number(e.target.value),
+                                });
+                                setDirty(true);
+                              }}
+                            />
+                          </label>
+                        </div>
+                        <p className="helper">
+                          Changing your phase keeps every existing journal entry.
+                        </p>
+                        <div className="phase-form-actions">
+                          <button className="primary" type="submit">
+                            {busy ? "Saving…" : "Save phase settings"}
+                            <Check size={17} />
+                          </button>
+                          {phase && (
+                            <button
+                              className="secondary"
+                              type="button"
+                              onClick={() => {
+                                if (!leave()) return;
+                                setDraft(phase);
+                                setDirty(false);
+                                setEditingPhase(false);
+                                setError("");
+                              }}
+                            >
+                              Cancel editing
+                            </button>
+                          )}
+                        </div>
+                      </fieldset>
+                    </form>
+                  )}
                   <div className="backup">
                     <div>
                       <h3>A copy for safekeeping</h3>
@@ -969,7 +1058,7 @@ export default function Journal() {
       <nav className="mobile-nav" aria-label="Mobile navigation">
         <button
           aria-current={tab === "entry" ? "page" : undefined}
-          onClick={() => selectDay(today())}
+          onClick={goToday}
         >
           <PencilLine size={20} />
           Today
